@@ -4,7 +4,7 @@
   <PropertyGroup>
     <AssemblyName>NippleTether</AssemblyName>
     <RootNamespace>NippleTether</RootNamespace>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Description>NippleTether - chains from both nipples to a point she or the player moves (SecretFlasherManaka, BepInEx IL2CPP)</Description>
   </PropertyGroup>
 

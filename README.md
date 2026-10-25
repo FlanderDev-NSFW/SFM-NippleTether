@@ -1,6 +1,6 @@
 # NippleTether
 
-Two chains, one from each nipple, to one point in the air. A restraint on **RestraintHub** (ring value 9500): put on from the
+Two chains, one from each nipple, to one point in the air. A restraint on **RestraintHub** (0.3.0 or newer; ring value 9500): put on from the
 ring's restraint page, it appears in the restraint list. The point has no gravity and goes through anything; the chains hang
 under gravity, lie on her body and the level, and when they are held taut they draw her breasts out and then pull her along.
 
@@ -10,7 +10,7 @@ under gravity, lie on her body and the level, and when they are held taut they d
 |---|---|
 | tap **F** | hand the point to the player / give her back control. While the player holds the point she stands still and **WASD** move it (camera-relative), **Space** / **C** raise and lower it, Shift is 2.5x faster |
 | hold **F** | struggle free (`Unlock.AttemptSeconds`, `SuccessChance`) |
-| **+** / **-** | let the chains out / take them in (`Chain.StepCm` per step, held keys repeat; the links run smoothly out of and into the point's hoop at `Chain.LengthSpeed`). Stored in `Chain.LengthCm` |
+| **+** / **-** | let the chains out / take them in: a press is `Chain.StepCm`, held they run on smoothly at `Chain.LengthSpeed` (the links run out of and into the point's hoop). Stored in `Chain.LengthCm` on release |
 
 F belongs to the game inside interaction areas (closet, PC ...): step out of them first. It holds her place (`BodyParts.Spot`),
 so it is refused together with the Wall Restraint unless overlap is on (`V`).
@@ -35,6 +35,8 @@ so it is refused together with the Wall Restraint unless overlap is on (`V`).
   (`CharacterController.Move`) only when she is further from the point than the chain plus the breast stretch reach at their
   height difference (`PointControl.Follow`): the point cannot lift her, and while the player holds it the point cannot be
   raised above that reach.
+- **Hub:** the F tap is RestraintHub's `OnTap` (holding F longer is its `StruggleHeld`), smooth + / - its `HeldStep`, menus its
+  `MenuOpen`; save, load and a new game come through its `OnSave` / `OnLoad` / `OnNewGame`.
 - **Save:** whether it is on (`NippleTether.Locked`, `.Chance`; the hub saves the shortcuts). After a load, a teleport or a map
   change the point is put `Point.StartDistance` in front of her at the nipples' height.
 
@@ -44,7 +46,7 @@ so it is refused together with the Wall Restraint unless overlap is on (`V`).
 |---|---|---|
 | General.RingLabel | Nipple Tether | name in the ring and the list |
 | Chain.LengthCm | 100 | length of each chain (cm; + / - change and store it) |
-| Chain.StepCm / LengthSpeed | 2 / 0.4 | cm per + / - step; m/s the chains follow a new length |
+| Chain.StepCm / LengthSpeed | 2 / 0.4 | cm per press of + / -; m/s while held (and to follow a new length) |
 | Chain.MinLengthCm / MaxLengthCm | 15 / 300 | what + / - reach |
 | Chain.LinkCm | 1.5 | link size (cm, joint to joint; applies when put on) |
 | Chain.Damping / Gravity / Friction | 1 / 1 / 0.6 | swing damping, gravity, sliding speed lost per frame on the level |
@@ -80,6 +82,10 @@ point's distance and height, length and target, how far she was moved, level pro
     48 cm, she stayed put; with her coat open Space / C changed neither coat nor crouch (Space closed the coat before the fix).
   - + held: 110 -> 126 cm (74 -> 84 links), - back; 2.88 m chains (2 x 192 links): 21.4 vs 19.9 ms per frame without.
   - not checked: other maps, clothes, crawling, other restraints with overlap on.
+
+- L3 0.2.0 (2026-10-25, on RestraintHub 0.3.0): F tapped twice -> "tap: NippleTether", point mode on / off; held 3.6 s ->
+  struggled free. + held: 119.6 -> 317 cm in a smooth run at 0.4 m/s, one config write on release. Saved at home with it on:
+  "save: locked=True"; restart + load: "load: locked=True", worn again.
 
 ## Known limits
 

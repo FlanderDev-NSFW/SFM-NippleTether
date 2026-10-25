@@ -16,12 +16,12 @@ namespace NippleTether
     /// chains out and take them in. Taut chains draw her breasts out, then pull her along (<see cref="TetherController"/>).
     /// </summary>
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
-    [BepInDependency(Hub.Guid, BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency(Hub.Guid, "0.3.0")] // OnTap, HeldStep, OnSave / OnLoad / OnNewGame, MenuOpen
     public sealed class Plugin : BasePlugin
     {
         public const string PluginGuid = "com.local.nippletether";
         public const string PluginName = "NippleTether";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
         internal const string ModelResource = "NippleTether.assets.piercings.npd";
 
         internal static ManualLogSource Logger;
@@ -40,9 +40,9 @@ namespace NippleTether
             LengthCm = Config.Bind("Chain", "LengthCm", 100f, new ConfigDescription(
                 "Length of each chain (cm; + / - change it while the tether is selected, and store it here).", new AcceptableValueRange<float>(10f, 400f)));
             StepCm = Config.Bind("Chain", "StepCm", 2f, new ConfigDescription(
-                "How much one + / - step lets out or takes in (cm; holding the key repeats).", new AcceptableValueRange<float>(0.5f, 20f)));
+                "How much a press of + / - lets out or takes in (cm; held, the chains run on at LengthSpeed).", new AcceptableValueRange<float>(0.5f, 20f)));
             LengthSpeed = Config.Bind("Chain", "LengthSpeed", 0.4f, new ConfigDescription(
-                "How fast the chains follow a new length (m/s; the links run out of and into the point's ring).", new AcceptableValueRange<float>(0.05f, 3f)));
+                "How fast the chains run out and in while + / - is held (m/s; the links run out of and into the point's hoop).", new AcceptableValueRange<float>(0.05f, 3f)));
             MinLengthCm = Config.Bind("Chain", "MinLengthCm", 15f, new ConfigDescription("Shortest length + / - reach (cm).", new AcceptableValueRange<float>(5f, 100f)));
             MaxLengthCm = Config.Bind("Chain", "MaxLengthCm", 300f, new ConfigDescription("Longest length + / - reach (cm).", new AcceptableValueRange<float>(20f, 400f)));
             LinkCm = Config.Bind("Chain", "LinkCm", 1.5f, new ConfigDescription(
@@ -87,7 +87,6 @@ namespace NippleTether
                 Logger.LogError("chain models could not be read, the mod is disabled: " + e.Message);
                 return;
             }
-            Patches.Apply(new HarmonyLib.Harmony(PluginGuid));
             ClassInjector.RegisterTypeInIl2Cpp<TetherController>();
             AddComponent<TetherController>();
             Entry = new Restraint
@@ -95,13 +94,17 @@ namespace NippleTether
                 Id = "NippleTether",
                 RingValue = TetherController.RingItemValue,
                 Label = () => RingLabel.Value,
-                ShortcutSaveKey = Patches.SaveKeyShortcuts,
+                ShortcutSaveKey = TetherController.SaveKeyShortcuts,
                 Holds = BodyParts.Spot,   // it holds her near a place and moves her
                 IsWorn = () => TetherController.Instance != null && TetherController.Instance.Machine.Worn,
                 Blocks = () => RestraintHub.Blocks.None,
                 OnChosen = () => { var c = TetherController.Instance; if (c != null) c.PutOn(); },
                 Attempt = () => TetherController.Instance == null ? 0f : TetherController.Instance.Machine.Attempt,
                 OnInput = i => { var c = TetherController.Instance; if (c != null) c.OnInput(i); },
+                OnTap = () => TetherController.Instance?.OnTap(),
+                OnSave = slot => TetherController.Instance?.OnSave(slot),
+                OnLoad = slot => TetherController.Instance?.OnLoad(slot),
+                OnNewGame = () => TetherController.Instance?.OnNewGame(),
                 Controls = "+/- length, tap F: point",
             };
             Hub.Register(Entry);

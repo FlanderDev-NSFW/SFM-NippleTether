@@ -24,7 +24,6 @@ namespace NippleTether.Tests
             LengthTests();
             ObstacleTests();
             PullTests();
-            KeyTests();
             PointTests();
             string modelPath = Path.Combine(AppContext.BaseDirectory, "piercings.npd");
             if (File.Exists(modelPath)) ModelTests(modelPath);
@@ -218,20 +217,6 @@ namespace NippleTether.Tests
             var q = new BreastPull { MaxSpeed = 1f };
             q.Update(1f / 60f, 0.5f, Vector3.UnitY);
             Check(q.Offset.Length() <= 1f / 60f + 1e-5f, "a sudden pull draws the nipple out at most MaxSpeed");
-        }
-
-        private static void KeyTests()
-        {
-            var k = new TapOrHold();
-            bool tap = false;
-            for (int f = 0; f < 6; f++) tap |= k.Update(true, 1f / 60f);
-            tap |= k.Update(false, 1f / 60f);
-            Check(tap, "F tapped 0.1 s: a tap");
-            bool held = false;
-            tap = false;
-            for (int f = 0; f < 40; f++) { tap |= k.Update(true, 1f / 60f); held |= k.Holding; }
-            Check(held && !tap, "F held 0.67 s: holding (the struggle), no tap yet");
-            Check(!k.Update(false, 1f / 60f) && !k.Holding, "released after a hold: no tap");
         }
 
         private static void PointTests()

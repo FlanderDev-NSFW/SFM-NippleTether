@@ -63,8 +63,6 @@ namespace NippleTether
         }
 
         private readonly Side[] _sides = { new Side { Name = "L" }, new Side { Name = "R" } };
-        private readonly TapOrHold _f = new TapOrHold();
-        private readonly GameUi _ui = new GameUi();
         private TetherRig _rig;
         private EnvironmentProbe _probe;
         private Animator _anim;
@@ -80,7 +78,7 @@ namespace NippleTether
         private Vector3 _lastPlayer;
         private NVector3 _drag;                 // how far she is moved this frame (LateUpdate)
         private float _dragged;                 // diagnostics: metres she was moved since put on
-        private IntPtr _gameData;
+        private float _heldFor;                 // s the + / - key has been held
         private readonly List<Collider> _colliders = new List<Collider>();
         private float _pitch, _linkScale, _thickness;
         private static int _failures;
@@ -126,7 +124,6 @@ namespace NippleTether
         [HideFromIl2Cpp]
         private void Tick()
         {
-            TrackSaveIdentity();
             var player = PlayerController.Instance;
             if (player == null || GameState.GameStateData == null) return;
             if ((_sides[0].Anchor == null || _sides[1].Anchor == null || _anim == null) && Time.time >= _nextSearch)
@@ -136,12 +133,11 @@ namespace NippleTether
             }
             float dt = Time.deltaTime;
 
-            // F: a tap hands the point over (or back), holding it is the struggle.
+            // F: a tap hands the point over (Restraint.OnTap); holding it longer is the struggle (StruggleHeld, from the hub).
             bool locked = Machine.State == LockState.Locked;
-            if (_f.Update(Plugin.Entry.StruggleHeld && locked, dt) && locked) TogglePointMode();
             Machine.AttemptSeconds = Plugin.AttemptSeconds.Value;
             Machine.BaseChance = Plugin.SuccessChance.Value;
-            switch (Machine.Tick(dt, _f.Holding && locked, UnityEngine.Random.value))
+            switch (Machine.Tick(dt, Plugin.Entry.StruggleHeld && locked, UnityEngine.Random.value))
             {
                 case LockMachine.Event.Locked:
                     GameUi.PlaySe(InGameSoundManager.SeType.AttachHandcuffs);
@@ -161,18 +157,7 @@ namespace NippleTether
             }
             if (!Machine.Worn) { PointMode = false; return; }
 
-            // + / -: a new length; the chains follow it smoothly.
-            int step = Plugin.Entry.TakeStep();
-            float min = Plugin.MinLengthCm.Value / 100f, max = Math.Max(min, Plugin.MaxLengthCm.Value / 100f);
-            if (step != 0)
-            {
-                float want = Math.Clamp(_target + step * Plugin.StepCm.Value / 100f, min, max);
-                if (Math.Abs(want - _target) < 1e-5f) Hub.Message(step > 0 ? "The chains are let out all the way." : "The chains are as short as they go.");
-                _target = want;
-                Plugin.LengthCm.Value = (float)Math.Round(want * 100f, 1); // the player's action: stored
-                Plugin.Logger.LogInfo("[SFM-ACCEPT] length: target " + Cm(_target) + " cm");
-            }
-            _length = MoveTowards(_length, _target, Plugin.LengthSpeed.Value * dt);
+            Length(dt);
 
             // Teleports and map changes: the point comes along, put in front of her again.
             Vector3 at = player.transform.position;
@@ -182,10 +167,40 @@ namespace NippleTether
             if (PointMode) MovePoint(dt);
         }
 
+        /// <summary>+ / -: a press lets out / takes in one step; held, the chains run on smoothly at <c>LengthSpeed</c>
+        /// (RestraintHub's <c>HeldStep</c>; the hub's repeated steps came every 0.08 s). Stored in the config on release.</summary>
+        [HideFromIl2Cpp]
+        private void Length(float dt)
+        {
+            int step = Plugin.Entry.TakeStep(); // the first press (its repeats are replaced by the smooth run)
+            int held = Plugin.Entry.HeldStep;
+            float min = Plugin.MinLengthCm.Value / 100f, max = Math.Max(min, Plugin.MaxLengthCm.Value / 100f);
+            float before = _target;
+            if (held == 0)
+            {
+                if (_heldFor > 0f)
+                {
+                    Plugin.LengthCm.Value = (float)Math.Round(_target * 100f, 1); // the player's action: stored
+                    Plugin.Logger.LogInfo("[SFM-ACCEPT] length: target " + Cm(_target) + " cm");
+                }
+                _heldFor = 0f;
+            }
+            else
+            {
+                if (_heldFor == 0f && step != 0) _target += step * Plugin.StepCm.Value / 100f;
+                _heldFor = Math.Max(_heldFor + dt, 1e-4f);
+                if (_heldFor > 0.4f) _target += held * Plugin.LengthSpeed.Value * dt;
+            }
+            _target = Math.Clamp(_target, min, max);
+            if (step != 0 && Math.Abs(_target - before) < 1e-6f)
+                Hub.Message(step > 0 ? "The chains are let out all the way." : "The chains are as short as they go.");
+            _length = MoveTowards(_length, _target, Plugin.LengthSpeed.Value * dt);
+        }
+
         [HideFromIl2Cpp]
         private void MovePoint(float dt)
         {
-            if (_ui.PanelOpen() || GameUi.RingOpen()) return;
+            if (Hub.MenuOpen) return;
             var kb = Keyboard.current;
             if (kb == null || _needPoint) return;
             float x = (kb.dKey.isPressed ? 1f : 0f) - (kb.aKey.isPressed ? 1f : 0f);
@@ -571,6 +586,13 @@ namespace NippleTether
             Plugin.Logger.LogInfo("[SFM-ACCEPT] control: " + (PointMode ? "point" : "player"));
         }
 
+        /// <summary>RestraintHub's Restraint.OnTap: F tapped while the tether is selected.</summary>
+        [HideFromIl2Cpp]
+        internal void OnTap()
+        {
+            if (Machine.State == LockState.Locked) TogglePointMode();
+        }
+
         /// <summary>Diagnostics: the F tap.</summary>
         public static string TogglePoint()
         {
@@ -618,24 +640,36 @@ namespace NippleTether
             }
         }
 
-        // --- save identity ---------------------------------------------------------------------------------------------------
+        // --- save data (RestraintHub's OnSave / OnLoad / OnNewGame) ----------------------------------------------------------
+
+        internal const string SaveKeyLocked = "NippleTether.Locked";
+        internal const string SaveKeyChance = "NippleTether.Chance";
+        internal const string SaveKeyShortcuts = "NippleTether.Shortcuts"; // written by the hub
 
         [HideFromIl2Cpp]
-        internal void OnSaveLoaded(bool locked, float chance)
+        internal void OnSave(SaveSlot slot)
         {
-            Machine.Restore(locked, chance);
-            _gameData = GameState.GameStateData == null ? IntPtr.Zero : GameState.GameStateData.Pointer;
-            _length = _target = Plugin.LengthCm.Value / 100f;
-            NewChains();
+            bool locked = Machine.Worn && Machine.State != LockState.Opening;
+            slot.Save(SaveKeyLocked, locked);
+            slot.Save(SaveKeyChance, (double)Machine.Chance);
+            Plugin.Logger.LogInfo("[SFM-ACCEPT] save: locked=" + locked + " path=" + slot.Path);
         }
 
         [HideFromIl2Cpp]
-        private void TrackSaveIdentity()
+        internal void OnLoad(SaveSlot slot)
         {
-            var data = GameState.GameStateData;
-            IntPtr ptr = data == null ? IntPtr.Zero : data.Pointer;
-            if (ptr == _gameData) return;
-            _gameData = ptr;
+            bool locked = slot.Load(SaveKeyLocked, false); // default when the save has no key (older save)
+            double chance = slot.Load(SaveKeyChance, -1.0);
+            Machine.Restore(locked, (float)Math.Max(chance, 0.0));
+            _length = _target = Plugin.LengthCm.Value / 100f;
+            NewChains();
+            Plugin.Logger.LogInfo("[SFM-ACCEPT] load: locked=" + locked + " path=" + slot.Path);
+        }
+
+        /// <summary>A new game or the title screen (the hub noticed the game data replaced without a load): off.</summary>
+        [HideFromIl2Cpp]
+        internal void OnNewGame()
+        {
             if (Machine.Worn) Plugin.Logger.LogInfo("game data replaced without a load: off");
             Machine.Reset();
             TakenOff();
