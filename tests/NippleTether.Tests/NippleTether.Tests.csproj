@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Runs without the game: compiles only the Unity-free logic of the mod (+ the pure part of SfmKit). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RollForward>Major</RollForward>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <RootNamespace>NippleTether.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\mods\NippleTether\Logic\**\*.cs" Link="Logic\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Shared with NipplePiercings (the same files the mod links). -->
+    <Compile Include="..\..\mods\NipplePiercings\Logic\Collider.cs" Link="NipplePiercings\Collider.cs" />
+    <Compile Include="..\..\mods\NipplePiercings\Logic\SaggingChain.cs" Link="NipplePiercings\SaggingChain.cs" />
+    <Compile Include="..\..\mods\NipplePiercings\Logic\PiercingSet.cs" Link="NipplePiercings\PiercingSet.cs" />
+    <Compile Include="..\..\src\SfmKit\Pure\**\*.cs" Link="SfmKit.Pure\%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="..\..\mods\NipplePiercings\assets\piercings.npd" Link="piercings.npd" CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('..\..\mods\NipplePiercings\assets\piercings.npd')" />
+  </ItemGroup>
+</Project>
