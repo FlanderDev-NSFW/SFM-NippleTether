@@ -13,7 +13,7 @@ namespace NippleTether
     /// <summary>
     /// Two chains from her nipples to one point in the air. A restraint on RestraintHub: put on from the ring, selected in the
     /// list a tap on F hands the point to the player (WASD, up / down keys) and back, holding F struggles free, + / - let the
-    /// chains out and take them in. Taut chains draw her breasts out, then pull her along (<see cref="TetherController"/>).
+    /// chains out and take them in. Taut chains draw her breasts out and hold her back (<see cref="TetherController"/>).
     /// </summary>
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(Hub.Guid, "0.3.0")] // OnTap, HeldStep, OnSave / OnLoad / OnNewGame, MenuOpen
@@ -21,7 +21,7 @@ namespace NippleTether
     {
         public const string PluginGuid = "com.local.nippletether";
         public const string PluginName = "NippleTether";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.3.0";
         internal const string ModelResource = "NippleTether.assets.piercings.npd";
 
         internal static ManualLogSource Logger;
@@ -29,7 +29,7 @@ namespace NippleTether
         // public: tunable live with the bridge (game set)
         public static ConfigEntry<string> RingLabel, UpKey, DownKey;
         public static ConfigEntry<float> LengthCm, StepCm, LengthSpeed, MinLengthCm, MaxLengthCm, LinkCm, Damping, Gravity, Friction;
-        public static ConfigEntry<float> PointSpeed, StartDistance, MaxStretchCm, MaxAngle, NippleFit, DepthCm, AttemptSeconds, SuccessChance;
+        public static ConfigEntry<float> PointSpeed, StartDistance, MaxStretchCm, MaxAngle, Elongation, MaxElongation, NippleFit, DepthCm, AttemptSeconds, SuccessChance;
         public static ConfigEntry<bool> BodyCollision, LevelCollision;
         public static ConfigEntry<int> DebugDisable;
 
@@ -65,6 +65,11 @@ namespace NippleTether
                 "How far a taut chain draws a nipple out before it pulls her along (cm at height 1, scaled with her height).", new AcceptableValueRange<float>(0f, 15f)));
             MaxAngle = Config.Bind("Breasts", "MaxAngle", 30f, new ConfigDescription(
                 "How far a breast turns towards its chain at most (degrees).", new AcceptableValueRange<float>(0f, 80f)));
+            Elongation = Config.Bind("Breasts", "Elongation", 1.5f, new ConfigDescription(
+                "How much a taut chain stretches the breast towards it (per unit of pull relative to the breast's length; 0 = the breast is only turned).",
+                new AcceptableValueRange<float>(0f, 5f)));
+            MaxElongation = Config.Bind("Breasts", "MaxElongation", 0.5f, new ConfigDescription(
+                "How far a breast is stretched at most (0.5 = to 1.5 times its length).", new AcceptableValueRange<float>(0f, 1.5f)));
             NippleFit = Config.Bind("Nipple", "NippleFit", 1.7f, new ConfigDescription(
                 "Size of the ring through each nipple relative to the nipple (as NipplePiercings' rings).", new AcceptableValueRange<float>(0.3f, 4f)));
             DepthCm = Config.Bind("Nipple", "DepthCm", 0.45f, new ConfigDescription(
@@ -74,7 +79,7 @@ namespace NippleTether
             SuccessChance = Config.Bind("Unlock", "SuccessChance", 1f, new ConfigDescription(
                 "Chance that an attempt frees her (1 = the first; failures add 0.02, like the game's handcuffs).", new AcceptableValueRange<float>(0.01f, 1f)));
             DebugDisable = Config.Bind("Debug", "Disable", 0,
-                "Bit mask for tests (live): 1 = breasts not pulled, 2 = she is not pulled along, 4 = no body collisions, 8 = no level collisions, 16 = no nipple rings.");
+                "Bit mask for tests (live): 1 = breasts not pulled, 2 = she is not held back, 4 = no body collisions, 8 = no level collisions, 16 = no nipple rings.");
 
             try
             {

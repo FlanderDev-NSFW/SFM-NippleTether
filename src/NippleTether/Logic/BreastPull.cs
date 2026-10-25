@@ -5,7 +5,7 @@ namespace NippleTether.Logic
 {
     /// <summary>
     /// What a taut chain does to her breast: it draws the nipple out towards the pull, up to <see cref="MaxStretch"/>
-    /// (<see cref="Excess"/> is what is left over; moving her is <see cref="PointControl.Follow"/>). Fed every frame with the chain's
+    /// (<see cref="Excess"/> is what is left over; holding her back is <see cref="PointControl.Hold"/>). Fed every frame with the chain's
     /// <see cref="TetherChain.Stretch"/> measured from where the nipple is drawn (already pulled by <see cref="Offset"/>), so
     /// the offset grows by what is still missing and settles where the chain is just taut; when the chain hangs slack the
     /// breast springs back within <see cref="ReturnSeconds"/>. World space, metres.
@@ -68,18 +68,25 @@ namespace NippleTether.Logic
         }
 
         /// <summary>
-        /// How far she has to be moved on the ground for a chain from <paramref name="nipple"/> to reach <paramref name="point"/>
-        /// (straight, <paramref name="reach"/> = chain + breast stretch): towards the point, by what her horizontal distance
-        /// exceeds the reach left at their height difference. Zero within reach. Moving her along the chain's own pull instead
-        /// never took up a pull from below: with the point under her she slid on and on (2.4 m) [observed 2026-10-25].
+        /// The chain holds her back: of her own step this frame (<paramref name="moved"/>, on the ground) the part that takes the
+        /// nipple further from the point than <paramref name="reach"/> allows at their height difference is undone - nothing
+        /// else, so she is never pulled towards the point or slid around. <paramref name="nipple"/> is where the nipple was
+        /// before the step. Returns the correction (opposite to her step, horizontal), zero within reach or when stepping back in.
+        /// Pulling her towards the point instead (0.1 / 0.2) moved her around too much [user, 2026-10-26].
         /// </summary>
-        public static Vector3 Follow(Vector3 nipple, Vector3 point, float reach)
+        public static Vector3 Hold(Vector3 nipple, Vector3 point, float reach, Vector3 moved)
         {
-            Vector3 h = new Vector3(point.X - nipple.X, 0f, point.Z - nipple.Z);
+            moved.Y = 0f;
+            Vector3 now = nipple + moved;
+            Vector3 h = new Vector3(now.X - point.X, 0f, now.Z - point.Z);
             float dy = point.Y - nipple.Y;
             float room = reach > Math.Abs(dy) ? (float)Math.Sqrt(reach * reach - dy * dy) : 0f;
             float dist = h.Length();
-            return dist > room && dist > 1e-6f ? h * ((dist - room) / dist) : Vector3.Zero;
+            if (dist <= room || dist < 1e-6f) return Vector3.Zero;
+            Vector3 u = h / dist;
+            float outward = Vector3.Dot(moved, u);
+            if (outward <= 0f) return Vector3.Zero;
+            return -u * Math.Min(outward, dist - room);
         }
 
         /// <summary>

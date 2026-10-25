@@ -232,14 +232,18 @@ namespace NippleTether.Tests
             Check(Near(held.Z, 1f), "point: not past the reach");
             var back = PointControl.Clamp(new Vector3(0f, 0f, 1.5f), new Vector3(0f, 0f, 1.4f), centre, 1f, 5f);
             Check(Near(back.Z, 1.4f), "point: beyond the reach (she was stuck) it may come back");
-            var f = PointControl.Follow(Vector3.Zero, new Vector3(0f, 0f, 1.5f), 1f);
-            Check(Near(f.Z, 0.5f) && Near(f.X, 0f) && Near(f.Y, 0f), "follow: 1.5 m away on 1 m of reach -> moved 0.5 m towards it");
-            f = PointControl.Follow(Vector3.Zero, new Vector3(0f, -1.2f, 0.3f), 1f);
-            Check(Near(f.Z, 0.3f) && Near(f.Y, 0f), "follow: point below beyond reach -> only over it, not on and on");
-            f = PointControl.Follow(Vector3.Zero, new Vector3(0f, -1.2f, 0f), 1f);
-            Check(f.Length() < 1e-6f, "follow: point straight below her: not moved (the pull is taken by the breasts)");
-            f = PointControl.Follow(Vector3.Zero, new Vector3(0.6f, 0.8f, 0f), 1f);
-            Check(f.Length() < 1e-5f, "follow: within reach (0.6 aside, 0.8 up on 1 m): not moved");
+            var f = PointControl.Hold(new Vector3(0f, 0f, -0.95f), Vector3.Zero, 1f, new Vector3(0f, 0f, -0.1f));
+            Check(Near(f.Z, 0.05f) && Near(f.X, 0f) && Near(f.Y, 0f), "hold: a step from 0.95 to 1.05 m on 1 m of reach -> 5 cm of it undone");
+            f = PointControl.Hold(new Vector3(0f, 0f, -1.2f), Vector3.Zero, 1f, new Vector3(0f, 0f, 0.1f));
+            Check(f.Length() < 1e-6f, "hold: beyond reach but stepping back in -> not moved (never pulled in)");
+            f = PointControl.Hold(new Vector3(0f, 0f, -1.2f), Vector3.Zero, 1f, Vector3.Zero);
+            Check(f.Length() < 1e-6f, "hold: beyond reach standing still -> not moved");
+            f = PointControl.Hold(new Vector3(0f, 0f, -1.1f), Vector3.Zero, 1f, new Vector3(0.1f, 0f, 0f));
+            Check(f.Length() > 0.008f && f.Length() < 0.0095f, "hold: beyond reach stepping 10 cm sideways (0.9 cm outward) -> only the outward bit undone (" + f.Length() + ")");
+            f = PointControl.Hold(new Vector3(0f, 1.2f, 0f), Vector3.Zero, 1f, new Vector3(0.1f, 0f, 0f));
+            Check(Near(f.X, -0.1f), "hold: point far below (no room) -> a step away from over it undone");
+            f = PointControl.Hold(new Vector3(0f, 0.8f, -0.5f), Vector3.Zero, 1f, new Vector3(0f, 0f, -0.05f));
+            Check(f.Length() < 1e-6f, "hold: within reach (0.55 aside, 0.8 up on 1 m) -> free");
             var up = PointControl.Clamp(new Vector3(0f, 0.4f, 0f), new Vector3(0f, 0.6f, 0f), centre, 5f, 0.5f);
             Check(Near(up.Y, 0.5f), "point: never more than the chain's reach above her");
         }

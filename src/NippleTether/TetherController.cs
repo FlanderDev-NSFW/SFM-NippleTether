@@ -59,7 +59,9 @@ namespace NippleTether
             // The breast turn written in LateUpdate, put back in the next Update.
             public bool Written;
             public Quaternion Saved, WrittenRot;
-            public float Angle;               // diagnostics
+            public Vector3 SavedScale, WrittenScale;
+            public float Angle, Stretch = 1f; // diagnostics
+            public float NippleSize = -1f;    // the piercing point's scale while the breast is not stretched (it scales with it)
         }
 
         private readonly Side[] _sides = { new Side { Name = "L" }, new Side { Name = "R" } };
@@ -76,8 +78,10 @@ namespace NippleTether
         private NVector3 _point;
         private bool _needPoint = true;
         private Vector3 _lastPlayer;
-        private NVector3 _drag;                 // how far she is moved this frame (LateUpdate)
-        private float _dragged;                 // diagnostics: metres she was moved since put on
+        private Vector3 _heldAt;                // where she stood after the last LateUpdate
+        private bool _hasHeldAt;
+        private NVector3 _held;                 // diagnostics: last correction
+        private float _dragged;                 // diagnostics: metres of her steps undone since put on
         private float _heldFor;                 // s the + / - key has been held
         private readonly List<Collider> _colliders = new List<Collider>();
         private float _pitch, _linkScale, _thickness;
@@ -192,6 +196,15 @@ namespace NippleTether
                 if (_heldFor > 0.4f) _target += held * Plugin.LengthSpeed.Value * dt;
             }
             _target = Math.Clamp(_target, min, max);
+            // Taken in no further than she can follow without being pulled: the chains stop where the breasts are drawn out
+            // all the way (she is not dragged; a shorter chain would only stretch).
+            if (_target < before)
+            {
+                float need = 0f;
+                foreach (var s in _sides)
+                    if (s.Chain != null) need = Math.Max(need, NVector3.Distance(s.Hook, _point) - MaxStretch);
+                _target = Math.Max(_target, Math.Min(before, need));
+            }
             if (step != 0 && Math.Abs(_target - before) < 1e-6f)
                 Hub.Message(step > 0 ? "The chains are let out all the way." : "The chains are as short as they go.");
             _length = MoveTowards(_length, _target, Plugin.LengthSpeed.Value * dt);
@@ -212,8 +225,9 @@ namespace NippleTether
             float speed = Plugin.PointSpeed.Value * (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed ? 2.5f : 1f);
             NVector3 to = _point + PointControl.Move(new NVector3(x, y, z), fwd, speed, dt);
             NVector3 centre = NippleMiddle();
-            float reach = _length + MaxStretch + 0.25f;
-            _point = PointControl.Clamp(_point, to, centre, reach, _length + MaxStretch);
+            // Never further than the chains reach: the point does not drag her (it used to, 0.25 m beyond).
+            float reach = _length + MaxStretch;
+            _point = PointControl.Clamp(_point, to, centre, reach, reach);
         }
 
         private static bool Held(Keyboard kb, string name)
@@ -223,38 +237,78 @@ namespace NippleTether
             catch (Exception) { return false; }
         }
 
-        /// <summary>The breasts turned towards their chains and her pulled along, written after the animator (LateUpdate) so it
+        /// <summary>The breasts drawn towards their chains and her held back, written after the animator (LateUpdate) so it
         /// shows on the skinned body; from the pulls the chains measured in the last frame's render.</summary>
         private void LateUpdate()
         {
             try
             {
-                if (!Machine.Worn) return;
+                if (!Machine.Worn) { _hasHeldAt = false; return; }
                 int debug = Plugin.DebugDisable.Value;
                 if ((debug & 1) == 0)
                     foreach (var s in _sides) TurnBreast(s);
-                if ((debug & 2) == 0 && _drag.LengthSquared() > 1e-10f && _cc != null && _cc.enabled)
-                {
-                    _cc.Move(U(_drag));
-                    _dragged += _drag.Length();
-                }
-                _drag = NVector3.Zero;
+                HoldBack((debug & 2) == 0);
             }
             catch (Exception e) { Fail("pulling her", e); }
+        }
+
+        /// <summary>Undo the part of her step this frame that takes a nipple out of its chain's reach
+        /// (<see cref="PointControl.Hold"/>); she is never moved otherwise.</summary>
+        [HideFromIl2Cpp]
+        private void HoldBack(bool on)
+        {
+            var player = PlayerController.Instance;
+            if (player == null || _cc == null) { _hasHeldAt = false; return; }
+            Vector3 pos = player.transform.position;
+            NVector3 moved = _hasHeldAt ? N(pos - _heldAt) : NVector3.Zero;
+            _held = NVector3.Zero;
+            if (on && _cc.enabled && !_needPoint && moved.Length() < 1f) // not across a teleport
+            {
+                float reach = _length + MaxStretch;
+                foreach (var s in _sides)
+                {
+                    if (s.Chain == null) continue;
+                    NVector3 c = PointControl.Hold(s.Hook, _point, reach, moved);
+                    if (c.LengthSquared() > _held.LengthSquared()) _held = c;
+                }
+                if (_held.LengthSquared() > 1e-10f)
+                {
+                    _cc.Move(U(_held));
+                    _dragged += _held.Length();
+                }
+            }
+            _heldAt = player.transform.position;
+            _hasHeldAt = true;
         }
 
         [HideFromIl2Cpp]
         private void TurnBreast(Side s)
         {
             if (s.Anchor == null || s.Breast == null || s.Breast.parent == null) return;
-            if (s.Pull.Offset.LengthSquared() < 1e-8f) { s.Angle = 0f; return; }
+            if (s.Pull.Offset.LengthSquared() < 1e-8f) { s.Angle = 0f; s.Stretch = 1f; return; }
             Transform root = s.Breast.parent; // BreastRotateL / R
-            Vector3 pivot = root.position, nipple = s.Anchor.position;
-            Vector3 r = nipple - pivot, t = r + U(s.Pull.Offset);
-            Quaternion q = Quaternion.RotateTowards(Quaternion.identity, Quaternion.FromToRotation(r, t), Plugin.MaxAngle.Value);
+            Vector3 pivot = root.position;
+            Vector3 r = s.Anchor.position - pivot, t = r + U(s.Pull.Offset);
             s.Saved = root.localRotation;
+            s.SavedScale = root.localScale;
+            // Drawn out: the breast is stretched along the root's local axis that points at the nipple (z, cos 0.94 on the first
+            // save [observed 2026-10-26]) by a share of the pull, then turned the rest of the way. Turning alone already put the
+            // nipple where the chain holds it, so the breast itself showed little of the pull [user, 2026-10-26].
+            float len = r.magnitude;
+            s.Stretch = 1f + Math.Min(Plugin.MaxElongation.Value, Plugin.Elongation.Value * s.Pull.Offset.Length() / Math.Max(len, 1e-4f));
+            if (s.Stretch > 1.0001f)
+            {
+                Vector3 local = root.InverseTransformDirection(r);
+                int axis = Math.Abs(local.x) > Math.Abs(local.y) ? (Math.Abs(local.x) > Math.Abs(local.z) ? 0 : 2) : (Math.Abs(local.y) > Math.Abs(local.z) ? 1 : 2);
+                Vector3 scale = s.SavedScale;
+                scale[axis] *= s.Stretch;
+                root.localScale = scale;
+                r = s.Anchor.position - pivot; // the stretched nipple
+            }
+            Quaternion q = Quaternion.RotateTowards(Quaternion.identity, Quaternion.FromToRotation(r, t), Plugin.MaxAngle.Value);
             root.rotation = q * root.rotation;
             s.WrittenRot = root.localRotation;
+            s.WrittenScale = root.localScale;
             s.Written = true;
             s.Angle = Quaternion.Angle(Quaternion.identity, q);
         }
@@ -268,7 +322,9 @@ namespace NippleTether
                 if (!s.Written) continue;
                 s.Written = false;
                 Transform root = s.Breast == null ? null : s.Breast.parent;
-                if (root != null && Quaternion.Angle(root.localRotation, s.WrittenRot) < 0.01f) root.localRotation = s.Saved;
+                if (root == null) continue;
+                if (Quaternion.Angle(root.localRotation, s.WrittenRot) < 0.01f) root.localRotation = s.Saved;
+                if ((root.localScale - s.WrittenScale).sqrMagnitude < 1e-10f) root.localScale = s.SavedScale;
             }
         }
 
@@ -316,7 +372,6 @@ namespace NippleTether
             BodyColliders((debug & 4) == 0 && Plugin.BodyCollision.Value);
             bool[] worn = PiercingsLink.Worn();
             var sb = new StringBuilder();
-            NVector3 drag = NVector3.Zero;
             for (int i = 0; i < 2; i++)
             {
                 var s = _sides[i];
@@ -336,21 +391,17 @@ namespace NippleTether
                 s.Pull.MaxStretch = MaxStretch;
                 s.Pull.Tolerance = 0.004f + 0.005f * _length;
                 s.Pull.Update(Time.deltaTime, c.Stretch, c.PullDirection);
-                NVector3 e = PointControl.Follow(s.Hook, _point, _length + MaxStretch);
-                if (e.LengthSquared() > drag.LengthSquared()) drag = e;
                 sb.Append(s.Name).Append(": ").Append(c.Segments).Append(" links, stretch ").Append(Cm(c.Stretch))
                   .Append(" cm, breast ").Append(Cm(s.Pull.Offset.Length())).Append(" cm / ").Append(s.Angle.ToString("0.0", CultureInfo.InvariantCulture))
-                  .Append(" deg, level ").Append(c.EnvironmentContacts).Append(ring ? "" : ", no ring").Append("; ");
+                  .Append(" deg x").Append(s.Stretch.ToString("0.00", CultureInfo.InvariantCulture))
+                  .Append(", level ").Append(c.EnvironmentContacts).Append(ring ? "" : ", no ring").Append("; ");
             }
-            float maxStep = 3f * Math.Max(Time.deltaTime, 1f / 120f);  // m per frame she can be pulled
-            if (drag.Length() > maxStep) drag *= maxStep / drag.Length();
-            _drag = drag;
             _rig.PlacePoint(_point, PointRotation(), _linkScale * 1.6f);
             _rig.SetVisible(true);
             NVector3 mid = NippleMiddle();
             sb.Append("point ").Append(PointMode ? "held by the player" : "fixed").Append(" ").Append(Cm(NVector3.Distance(mid, _point))).Append(" cm away, ")
-              .Append(Cm(_point.Y - mid.Y)).Append(" cm up; length ").Append(Cm(_length)).Append(" (target ").Append(Cm(_target)).Append(") cm; pulled ")
-              .Append(Cm(drag.Length())).Append(" cm this frame, ").Append(Cm(_dragged)).Append(" cm in all; probes ").Append(_probe.Queries)
+              .Append(Cm(_point.Y - mid.Y)).Append(" cm up; length ").Append(Cm(_length)).Append(" (target ").Append(Cm(_target)).Append(") cm; held back ")
+              .Append(Cm(_held.Length())).Append(" cm last frame, ").Append(Cm(_dragged)).Append(" cm in all; probes ").Append(_probe.Queries)
               .Append(", pushed ").Append(_probe.Pushes);
             Status = sb.ToString();
         }
@@ -362,7 +413,8 @@ namespace NippleTether
         private void PlaceRing(int i, Side s, bool visible)
         {
             Transform a = s.Anchor;
-            float nipple = a.lossyScale.z / ReferenceNipple;
+            if (!s.Written || s.NippleSize < 0f) s.NippleSize = a.lossyScale.z; // the stretch scales the point too
+            float nipple = s.NippleSize / ReferenceNipple;
             float scale = UnitMetres * nipple * Plugin.NippleFit.Value;
             NVector3 forward = N(a.forward);
             NVector3 tip = N(s.HasApex ? a.TransformPoint(s.ApexLocal) : a.position);

@@ -2,7 +2,7 @@
 
 Two chains, one from each nipple, to one point in the air. A restraint on **RestraintHub** (0.3.0 or newer; ring value 9500): put on from the
 ring's restraint page, it appears in the restraint list. The point has no gravity and goes through anything; the chains hang
-under gravity, lie on her body and the level, and when they are held taut they draw her breasts out and then pull her along.
+under gravity, lie on her body and the level, and when they are held taut they draw her breasts out and hold her back.
 
 ## Controls (Nipple Tether selected in the restraint list)
 
@@ -29,12 +29,14 @@ so it is refused together with the Wall Restraint unless overlap is on (`V`).
   (`EnvironmentProbe`: `Physics.OverlapSphereNonAlloc` + `ComputePenetration`, her own colliders, NPCs, UI and invisible player
   blockers skipped), with friction so a chain lying on something stays put. Length changes add or remove links at the point's end.
 - **Pull:** `Stretch` = how much longer a chain is held than it is (path or straight distance; also when it is caught around
-  something). The breast is turned towards its chain (its root bone `BreastRotateL / R`, in LateUpdate, put back in the next
-  Update) until the chain is just taut, up to `Breasts.MaxStretchCm` and `MaxAngle`; it springs back when the chain is slack.
-  The game's own breast physics (DynamicBone, stiffness 0.93) is too stiff for a force to show. She is moved along the ground
-  (`CharacterController.Move`) only when she is further from the point than the chain plus the breast stretch reach at their
-  height difference (`PointControl.Follow`): the point cannot lift her, and while the player holds it the point cannot be
-  raised above that reach.
+  something). The breast is drawn towards its chain until the chain is just taut, up to `Breasts.MaxStretchCm`: its root bone
+  (`BreastRotateL / R`, in LateUpdate, put back in the next Update) is stretched along its axis to the nipple
+  (`Breasts.Elongation`, at most `MaxElongation`) and turned the rest of the way (at most `MaxAngle`); it springs back when the
+  chain is slack. The game's own breast physics (DynamicBone, stiffness 0.93) is too stiff for a force to show.
+- **Holding her back:** she is never pulled. Of her own step, the part that would take a nipple further from the point than
+  the chain plus the breast stretch reach (at their height difference) is undone (`PointControl.Hold`,
+  `CharacterController.Move`): she can walk freely within reach and along its edge, and back in. The point held by the player
+  stops at that reach (it does not drag her), and `-` takes the chains in only as far as she can follow without being pulled.
 - **Hub:** the F tap is RestraintHub's `OnTap` (holding F longer is its `StruggleHeld`), smooth + / - its `HeldStep`, menus its
   `MenuOpen`; save, load and a new game come through its `OnSave` / `OnLoad` / `OnNewGame`.
 - **Save:** whether it is on (`NippleTether.Locked`, `.Chance`; the hub saves the shortcuts). After a load, a teleport or a map
@@ -54,10 +56,11 @@ so it is refused together with the Wall Restraint unless overlap is on (`V`).
 | Point.Speed | 0.8 | m/s while the player holds it (Shift 2.5x) |
 | Point.UpKey / DownKey | Space / C | raise / lower the point (Input System key names; their game actions are suppressed meanwhile) |
 | Point.StartDistance | 0.6 | m in front of her where the point is put |
-| Breasts.MaxStretchCm / MaxAngle | 4 / 30 | how far a nipple is drawn out (cm at height 1, scaled with her height) / a breast turned (deg) before she is pulled along |
+| Breasts.MaxStretchCm / MaxAngle | 4 / 30 | how far a nipple is drawn out (cm at height 1, scaled with her height) / a breast turned (deg) before she is held |
+| Breasts.Elongation / MaxElongation | 1.5 / 0.5 | how much of the pull stretches the breast towards the chain (per pull relative to its length; 0 = only turned) / at most (0.5 = 1.5 x its length) |
 | Nipple.NippleFit / DepthCm | 1.7 / 0.45 | ring size relative to the nipple; how far behind the tip it goes through |
 | Unlock.AttemptSeconds / SuccessChance | 3 / 1 | the struggle |
-| Debug.Disable | 0 | bit mask (live): 1 breasts not pulled, 2 she is not moved, 4 no body collisions, 8 no level collisions, 16 no nipple rings |
+| Debug.Disable | 0 | bit mask (live): 1 breasts not pulled, 2 she is not held back, 4 no body collisions, 8 no level collisions, 16 no nipple rings |
 
 ## Diagnostics
 
@@ -67,11 +70,11 @@ point's distance and height, length and target, how far she was moved, level pro
 
 ## Verification
 
-- L1: `dotnet run --project tests/NippleTether.Tests` (44): slack chain reads untaut (stretch < 0.1 mm), sags, keeps its links;
+- L1: `dotnet run --project tests/NippleTether.Tests` (43): slack chain reads untaut (stretch < 0.1 mm), sags, keeps its links;
   taut chain: stretch 0.2 m for ends 1.2 m apart on 1 m, pulls straight; a moving point and letting out / taking in move no
   joint more than 5 cm a frame, rests add up, 0.25 - 1.25 links last; on a floor: lies on it, stays put, control without the
   level hangs through; caught on a post: stretch; body sphere: outside; breast pull: settles, springs back, limited, rate
-  limited; F tap vs hold; point moves camera-relative, clamped; `Follow` (point below: moved only over it); the models.
+  limited; F tap vs hold; point moves camera-relative, clamped; `Hold` (only her outward step undone, never pulled in); the models.
 - L3 0.1.0 (2026-10-25, Apartment, first save; your Breasts 15 cm / 80 deg config):
   - put on: 74 links of 1.5 cm per 1.1 m chain, from NipplePiercings' crystals (no own ring), draped to the hoop 60 cm ahead.
   - point lowered 1.25 m (onto the floor): 19 + 27 joints on the floor; breasts drawn down (19.7 cm, 37-44 deg) - front inset
@@ -87,10 +90,16 @@ point's distance and height, length and target, how far she was moved, level pro
   struggled free. + held: 119.6 -> 317 cm in a smooth run at 0.4 m/s, one config write on release. Saved at home with it on:
   "save: locked=True"; restart + load: "load: locked=True", worn again.
 
+- L3 0.3.0 (2026-10-26, user request: move her less, more breast pull; your config: 92 cm, 15 cm / 80 deg): walking away
+  from the point she went 17 cm, then stopped at the reach (point 108 cm away) while still pressing S, and stayed put after
+  releasing it (no sliding). Point moved far below her (debug call past the reach): she was not moved at all (0.1.0: pulled
+  15 cm). Point held by the player, D for 5 s: it stopped at 111.8 cm (reach 111.7), she did not move. Breasts: 19.7 cm drawn
+  out, 67 deg and stretched x1.50 - screenshot vs `Elongation` 0 (x1.00, control): visibly longer, nipples lower.
+
 ## Known limits
 
-- She slides when pulled along (no walking animation).
+- When held back she walks on the spot (the game's walk animation plays against the chain).
 - The chains are drawn over clothes and pass through them.
 - Pull and collisions are approximations: the body is capsules and spheres; a chain caught around the level pulls the breasts,
-  but she is only moved by the straight distance to the point.
+  but she is held back by the straight distance to the point only.
 - The point is not saved: after a load it is put in front of her.
