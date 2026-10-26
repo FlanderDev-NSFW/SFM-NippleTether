@@ -560,8 +560,8 @@ namespace NippleTether
             }
         }
 
-        /// <summary>The nipples' tips from her drawn body (as NipplePiercings: the skin vertex within 4 cm of the piercing point
-        /// furthest along its +z, then only that vertex, kept in the point's frame between bakes).</summary>
+        /// <summary>The nipples' tips from her drawn body at every bake (as NipplePiercings: <see cref="NippleApex"/>, near the
+        /// piercing point and its axis, furthest along its +z), kept in the point's frame between bakes.</summary>
         [HideFromIl2Cpp]
         private void BakeApexes()
         {
@@ -572,21 +572,16 @@ namespace NippleTether
             Transform t = _body.transform;
             Vector3 pos = t.position, ls = t.lossyScale;
             Quaternion rot = t.rotation;
-            NVector3[] world = null;
+            var world = new NVector3[verts.Length];
+            for (int i = 0; i < verts.Length; i++) world[i] = N(pos + rot * Vector3.Scale(ls, verts[i]));
             foreach (var s in _sides)
             {
                 if (s.Anchor == null) continue;
-                if (s.ApexVertex < 0 || s.ApexVertex >= verts.Length)
-                {
-                    if (world == null)
-                    {
-                        world = new NVector3[verts.Length];
-                        for (int i = 0; i < verts.Length; i++) world[i] = N(pos + rot * Vector3.Scale(ls, verts[i]));
-                    }
-                    s.ApexVertex = NippleApex.Find(world, N(s.Anchor.position), N(s.Anchor.forward), 0.04f);
-                    if (s.ApexVertex < 0) { s.HasApex = false; continue; }
-                }
-                s.ApexLocal = s.Anchor.InverseTransformPoint(pos + rot * Vector3.Scale(ls, verts[s.ApexVertex]));
+                // While the tether stretches the breast its scale grows with it: search with the unstretched nipple size.
+                float scale = s.NippleSize > 0f ? s.NippleSize : s.Anchor.lossyScale.z;
+                s.ApexVertex = NippleApex.Find(world, N(s.Anchor.position), N(s.Anchor.forward), NippleApex.Radius(scale));
+                if (s.ApexVertex < 0) { s.HasApex = false; continue; }
+                s.ApexLocal = s.Anchor.InverseTransformPoint(U(world[s.ApexVertex]));
                 s.HasApex = true;
             }
         }

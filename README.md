@@ -96,6 +96,9 @@ point's distance and height, length and target, how far she was moved, level pro
   15 cm). Point held by the player, D for 5 s: it stopped at 111.8 cm (reach 111.7), she did not move. Breasts: 19.7 cm drawn
   out, 67 deg and stretched x1.50 - screenshot vs `Elongation` 0 (x1.00, control): visibly longer, nipples lower.
 
+- 0.3.1 (2026-10-26): the nipple tips are searched at every bake with NipplePiercings 0.2.2's tighter search (with the
+  unstretched nipple size while a breast is stretched).
+
 ## Known limits
 
 - When held back she walks on the spot (the game's walk animation plays against the chain).
