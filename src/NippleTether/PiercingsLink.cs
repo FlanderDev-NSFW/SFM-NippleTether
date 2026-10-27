@@ -12,7 +12,7 @@ namespace NippleTether
     /// </summary>
     internal static class PiercingsLink
     {
-        private const string Guid = "com.local.nipplepiercings";
+        private const string Guid = "FlanderDev.SFM.NipplePiercings";
         private static readonly bool[] _worn = new bool[2];
         private static float _next;
         private static bool _broken, _found;

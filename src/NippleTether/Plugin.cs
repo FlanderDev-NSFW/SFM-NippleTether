@@ -16,12 +16,12 @@ namespace NippleTether
     /// chains out and take them in. Taut chains draw her breasts out and hold her back (<see cref="TetherController"/>).
     /// </summary>
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
-    [BepInDependency(Hub.Guid, "0.3.0")] // OnTap, HeldStep, OnSave / OnLoad / OnNewGame, MenuOpen
+    [BepInDependency(Hub.Guid, "1.0.0")] // OnTap, HeldStep, OnSave / OnLoad / OnNewGame, MenuOpen
     public sealed class Plugin : BasePlugin
     {
-        public const string PluginGuid = "com.local.nippletether";
+        public const string PluginGuid = "FlanderDev.SFM.NippleTether";
         public const string PluginName = "NippleTether";
-        public const string PluginVersion = "0.3.2";
+        public const string PluginVersion = "1.0.0";
         internal const string ModelResource = "NippleTether.assets.piercings.npd";
 
         internal static ManualLogSource Logger;
