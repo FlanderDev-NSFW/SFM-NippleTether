@@ -1,0 +1,8 @@
+<Project>
+  <!-- NipplePiercings' chain code and model, compiled into NippleTether (no runtime dependency): the repository next to this
+       one (..\NipplePiercings, as in sfm-modkit/mods), else the lib\NipplePiercings submodule. -->
+  <PropertyGroup>
+    <SfmNipplePiercings Condition="Exists('$(RepoRoot)..\NipplePiercings\src\NipplePiercings\NipplePiercings.csproj')">$(RepoRoot)..\NipplePiercings\</SfmNipplePiercings>
+    <SfmNipplePiercings Condition="'$(SfmNipplePiercings)' == ''">$(RepoRoot)lib\NipplePiercings\</SfmNipplePiercings>
+  </PropertyGroup>
+</Project>

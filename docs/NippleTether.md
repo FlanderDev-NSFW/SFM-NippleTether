@@ -1,7 +1,8 @@
 # NippleTether
 
-> Developer notes: how it works, settings in detail, diagnostics and the test history. The player readme (shipped in the
-> release zip) is [`mods/NippleTether/README.md`](../../mods/NippleTether/README.md).
+> Developer notes (written in [sfm-modkit](https://github.com/FlanderDev-NSFW), where the mod is developed with
+> an in-game test bridge; paths like `./tools/dev.ps1` and `docs/knowledge/` refer to that kit): how it works, settings in detail, diagnostics and the test history. The player readme (shipped in the
+> release zip) is [`README.md`](../README.md).
 >
 > **1.0.0 (2026-10-27): first release** (F3M). Plugin GUID `FlanderDev.SFM.NippleTether` (was `com.local.nippletether`), so the
 > config file is `BepInEx/config/FlanderDev.SFM.NippleTether.cfg`. The release zips no longer include RestraintHub (it is its own download).

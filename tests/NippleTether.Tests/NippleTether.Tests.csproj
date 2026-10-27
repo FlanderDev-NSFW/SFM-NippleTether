@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(RepoRoot)build\NipplePiercings.props" />
   <!-- Runs without the game: compiles only the Unity-free logic of the mod (+ the pure part of SfmKit). -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -9,13 +10,13 @@
     <RootNamespace>NippleTether.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\..\mods\NippleTether\Logic\**\*.cs" Link="Logic\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\NippleTether\Logic\**\*.cs" Link="Logic\%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Shared with NipplePiercings (the same files the mod links). -->
-    <Compile Include="..\..\mods\NipplePiercings\Logic\Collider.cs" Link="NipplePiercings\Collider.cs" />
-    <Compile Include="..\..\mods\NipplePiercings\Logic\SaggingChain.cs" Link="NipplePiercings\SaggingChain.cs" />
-    <Compile Include="..\..\mods\NipplePiercings\Logic\PiercingSet.cs" Link="NipplePiercings\PiercingSet.cs" />
-    <Compile Include="..\..\src\SfmKit\Pure\**\*.cs" Link="SfmKit.Pure\%(RecursiveDir)%(Filename)%(Extension)" />
-    <None Include="..\..\mods\NipplePiercings\assets\piercings.npd" Link="piercings.npd" CopyToOutputDirectory="PreserveNewest"
-          Condition="Exists('..\..\mods\NipplePiercings\assets\piercings.npd')" />
+    <Compile Include="$(SfmNipplePiercings)src\NipplePiercings\Logic\Collider.cs" Link="NipplePiercings\Collider.cs" />
+    <Compile Include="$(SfmNipplePiercings)src\NipplePiercings\Logic\SaggingChain.cs" Link="NipplePiercings\SaggingChain.cs" />
+    <Compile Include="$(SfmNipplePiercings)src\NipplePiercings\Logic\PiercingSet.cs" Link="NipplePiercings\PiercingSet.cs" />
+    <Compile Include="..\..\lib\SfmKit\Pure\**\*.cs" Link="SfmKit.Pure\%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="$(SfmNipplePiercings)src\NipplePiercings\assets\piercings.npd" Link="piercings.npd" CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('$(SfmNipplePiercings)src\NipplePiercings\assets\piercings.npd')" />
   </ItemGroup>
 </Project>

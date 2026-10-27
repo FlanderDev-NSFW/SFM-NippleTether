@@ -1,22 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="$(RepoRoot)build\SfmMod.props" />
+  <Import Project="$(RepoRoot)build\NipplePiercings.props" />
 
   <PropertyGroup>
     <AssemblyName>NippleTether</AssemblyName>
     <RootNamespace>NippleTether</RootNamespace>
     <Version>1.0.0</Version>
     <Description>NippleTether - chains from both nipples to a point she or the player moves (SecretFlasherManaka, BepInEx IL2CPP)</Description>
+    <!-- Compiles against RestraintHub (build/SfmMod.targets); players install it separately. -->
+    <SfmUsesRestraintHub>true</SfmUsesRestraintHub>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RestraintHub\RestraintHub.csproj" Private="false" />
     <!-- NipplePiercings' models (the chain link, the nipple ring, the hoop) and the plain-C# pieces that read and use them,
          compiled into this DLL (no dependency on that mod; its types are not shared at runtime). -->
-    <Compile Include="..\NipplePiercings\Logic\PiercingSet.cs" Link="Shared\PiercingSet.cs" />
-    <Compile Include="..\NipplePiercings\Logic\Collider.cs" Link="Shared\Collider.cs" />
-    <Compile Include="..\NipplePiercings\Logic\SaggingChain.cs" Link="Shared\SaggingChain.cs" />
-    <Compile Include="..\NipplePiercings\Logic\NippleApex.cs" Link="Shared\NippleApex.cs" />
-    <EmbeddedResource Include="..\NipplePiercings\assets\piercings.npd" LogicalName="NippleTether.assets.piercings.npd" />
+    <Compile Include="$(SfmNipplePiercings)src\NipplePiercings\Logic\PiercingSet.cs" Link="Shared\PiercingSet.cs" />
+    <Compile Include="$(SfmNipplePiercings)src\NipplePiercings\Logic\Collider.cs" Link="Shared\Collider.cs" />
+    <Compile Include="$(SfmNipplePiercings)src\NipplePiercings\Logic\SaggingChain.cs" Link="Shared\SaggingChain.cs" />
+    <Compile Include="$(SfmNipplePiercings)src\NipplePiercings\Logic\NippleApex.cs" Link="Shared\NippleApex.cs" />
+    <EmbeddedResource Include="$(SfmNipplePiercings)src\NipplePiercings\assets\piercings.npd" LogicalName="NippleTether.assets.piercings.npd" />
   </ItemGroup>
 
   <Import Project="$(RepoRoot)build\SfmKit.props" />

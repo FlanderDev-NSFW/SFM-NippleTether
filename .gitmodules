@@ -1,0 +1,3 @@
+[submodule "lib/NipplePiercings"]
+	path = lib/NipplePiercings
+	url = https://github.com/FlanderDev-NSFW/SFM-NipplePiercings.git
