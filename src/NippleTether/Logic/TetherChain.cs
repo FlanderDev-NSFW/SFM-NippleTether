@@ -11,6 +11,11 @@ namespace NippleTether.Logic
         /// <summary>Move <paramref name="p"/> (a sphere of <paramref name="radius"/>) out of anything solid it overlaps; true if it
         /// moved, with the way out in <paramref name="normal"/> (unit).</summary>
         bool PushOut(ref Vector3 p, float radius, out Vector3 normal);
+
+        /// <summary>Move a sphere of <paramref name="radius"/> from <paramref name="from"/> towards <paramref name="to"/>: true if
+        /// it hits something on the way, with <paramref name="to"/> moved back to where it touches and the surface's normal in
+        /// <paramref name="normal"/>. Surfaces it already overlaps at <paramref name="from"/> do not count.</summary>
+        bool Sweep(Vector3 from, ref Vector3 to, float radius, out Vector3 normal);
     }
 
     /// <summary>
@@ -19,7 +24,9 @@ namespace NippleTether.Logic
     /// segment at B (links feed out of and into the point's ring there, so the length changes smoothly). Position-based Verlet
     /// like NipplePiercings' <c>SaggingChain</c>: gravity, damping, lengths swept from both ends many times per step, joints kept
     /// out of <see cref="Colliders"/> (her body) every sweep and out of <see cref="Environment"/> (the level) once per frame,
-    /// with friction there so a chain lying on the floor or over a rail stays put.
+    /// with friction there so a chain lying on the floor or over a rail stays put. The level is swept from where each joint was
+    /// after the last frame's check (after a new layout: from the joint before it), so a joint cannot pass through a floor
+    /// between two checks.
     /// <para>
     /// <see cref="Stretch"/> says how much longer the chain is held than it is: when the ends are further apart than its length,
     /// or it is caught around something, the joints cannot keep their spacing and the path grows. The caller turns that into a
@@ -37,6 +44,8 @@ namespace NippleTether.Logic
         private readonly List<Vector3> _x = new List<Vector3>(), _prev = new List<Vector3>();
         private readonly List<Vector3> _contact = new List<Vector3>();
         private bool[] _hit = Array.Empty<bool>();   // joints the level pushed this frame
+        private readonly List<Vector3> _checked = new List<Vector3>(); // each joint after the last check against the level
+        private bool _checkedValid;                  // false after a new layout: swept from the joint before instead
         private float _scale = 1f;                   // the links' lengths while the ends are held further apart than the chain is long
         private float _length, _carry;
         private bool _hung;
@@ -60,7 +69,7 @@ namespace NippleTether.Logic
             Thickness = thickness;
             _length = Math.Max(length, MinLength);
             int segments = Math.Max(1, (int)Math.Ceiling(_length / pitch - 0.25f));
-            for (int k = 0; k <= segments; k++) { _x.Add(Vector3.Zero); _prev.Add(Vector3.Zero); _contact.Add(Vector3.Zero); }
+            for (int k = 0; k <= segments; k++) { _x.Add(Vector3.Zero); _prev.Add(Vector3.Zero); _contact.Add(Vector3.Zero); _checked.Add(Vector3.Zero); }
         }
 
         public float MinLength => Pitch * 0.5f;
@@ -102,12 +111,14 @@ namespace NippleTether.Logic
                     _x.Insert(n, p);
                     _prev.Insert(n, p - v);
                     _contact.Insert(n, Vector3.Zero);
+                    _checked.Insert(n, Vector3.Lerp(_checked[n - 1], _checked[n], t));
                 }
                 else if (last < 0.25f * Pitch && n > 1)
                 {
                     _x.RemoveAt(n - 1);
                     _prev.RemoveAt(n - 1);
                     _contact.RemoveAt(n - 1);
+                    _checked.RemoveAt(n - 1);
                 }
                 else return;
             }
@@ -119,6 +130,7 @@ namespace NippleTether.Logic
             if (!_hung || Vector3.Distance(a, _x[0]) > TeleportDistance || Vector3.Distance(b, _x[n]) > TeleportDistance)
             {
                 Hang(a, b);
+                if (Environment != null) CheckEnvironment();
                 Measure(a, b);
                 return;
             }
@@ -150,36 +162,71 @@ namespace NippleTether.Logic
                 Solve(Iterations);
                 KeepContacts();
             }
+            if (Environment != null) CheckEnvironment();
+            else EnvironmentContacts = 0;
+            Measure(a, b);
+        }
+
+        /// <summary>
+        /// The joints against the level, once per frame: each is swept from where it was after the last check, then pushed out
+        /// of what it overlaps. Only pushing out let a falling chain through the floor: a joint moves several centimetres a frame,
+        /// a floor's mesh is pushed out of only near its top, and once below it the chain hung through it for good [observed
+        /// 2026-10-26, 400 cm chains at home].
+        /// </summary>
+        private void CheckEnvironment()
+        {
+            int n = Segments;
             EnvironmentContacts = 0;
-            if (Environment != null)
+            if (_hit.Length < n + 1) _hit = new bool[2 * (n + 1)];
+            for (int k = 1; k < n; k++)
             {
-                if (_hit.Length < n + 1) _hit = new bool[2 * (n + 1)];
+                Vector3 p = _x[k];
+                Vector3 from = _checkedValid ? _checked[k] : _x[k - 1];
+                bool swept = SweepFrom(from, ref p, out Vector3 sweptNormal);
+                _hit[k] = Environment.PushOut(ref p, Thickness, out Vector3 normal);
+                if (swept && !_hit[k]) normal = sweptNormal;
+                _hit[k] |= swept;
+                if (!_hit[k]) continue;
+                EnvironmentContacts++;
+                _x[k] = p;
+                // No speed into the surface, and friction along it.
+                Vector3 v = _x[k] - _prev[k];
+                float into = Vector3.Dot(v, normal);
+                if (into < 0f) v -= normal * into;
+                v *= 1f - Math.Clamp(Friction, 0f, 1f);
+                _prev[k] = _x[k] - v;
+            }
+            for (int k = 0; k <= n; k++) _checked[k] = _x[k];
+            if (EnvironmentContacts > 0)
+            {
+                Solve(SettleIterations);
+                // Settling pulls some joints back in (a new layout squeezed onto the floor: far): swept from where they were
+                // checked, and those that touched pushed out once more.
                 for (int k = 1; k < n; k++)
                 {
                     Vector3 p = _x[k];
-                    _hit[k] = Environment.PushOut(ref p, Thickness, out Vector3 normal);
-                    if (!_hit[k]) continue;
-                    EnvironmentContacts++;
-                    _x[k] = p;
-                    // No speed into the surface, and friction along it.
-                    Vector3 v = _x[k] - _prev[k];
-                    float into = Vector3.Dot(v, normal);
-                    if (into < 0f) v -= normal * into;
-                    v *= 1f - Math.Clamp(Friction, 0f, 1f);
-                    _prev[k] = _x[k] - v;
-                }
-                if (EnvironmentContacts > 0)
-                {
-                    Solve(SettleIterations);
-                    // Settling pulls some joints back in a little: those that touched are pushed out once more.
-                    for (int k = 1; k < n; k++)
-                    {
-                        Vector3 p = _x[k];
-                        if (_hit[k] && Environment.PushOut(ref p, Thickness, out _)) _x[k] = p;
-                    }
+                    bool moved = SweepFrom(_checked[k], ref p, out _);
+                    if ((_hit[k] || moved) && Environment.PushOut(ref p, Thickness, out _)) moved = true;
+                    if (moved) _x[k] = p;
                 }
             }
-            Measure(a, b);
+            for (int k = 0; k <= n; k++) _checked[k] = _x[k];
+            _checkedValid = true;
+        }
+
+        /// <summary>A joint swept from <paramref name="from"/> to <paramref name="p"/>, started a thickness further back: a joint
+        /// lying on the floor touches it, and a sweep ignores what it touches at its start - those joints went through the floor
+        /// [observed 2026-10-26: 1.9 cm below it, on a box under it].</summary>
+        private bool SweepFrom(Vector3 from, ref Vector3 p, out Vector3 normal)
+        {
+            normal = Vector3.UnitY;
+            Vector3 d = p - from;
+            float len = d.Length();
+            if (len < Thickness * 0.5f) return false;
+            Vector3 dir = d / len, q = p;
+            if (!Environment.Sweep(from - dir * Thickness, ref q, Thickness, out normal)) return false;
+            p = Vector3.Dot(q - from, dir) > 0f ? q : from;
+            return true;
         }
 
         private void Solve(int iterations)
@@ -289,6 +336,7 @@ namespace NippleTether.Logic
             }
             _carry = 0f;
             _hung = true;
+            _checkedValid = false;
         }
 
         private void PushOut(int k)

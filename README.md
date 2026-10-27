@@ -99,6 +99,14 @@ point's distance and height, length and target, how far she was moved, level pro
 - 0.3.1 (2026-10-26): the nipple tips are searched at every bake with NipplePiercings 0.2.2's tighter search (with the
   unstretched nipple size while a breast is stretched).
 
+- L3 0.3.2 (2026-10-26, user report: the chains go through the floor): the joints were only pushed out of the level once a
+  frame; a joint lying on the floor's mesh slipped under it and stayed there (diagnostic `Floor`: lowest joint 1.9 cm below the
+  floor, resting on a box under it; screenshot: chains into the floor at her feet). Now each joint is also swept
+  (`Physics.SphereCastNonAlloc`) from where it was at the last check, started a link's thickness further back, since a sweep
+  ignores the floor it starts touching (tests: a falling 4 m chain and a new layout that would sag through a thin floor; the
+  layout test fails without the back-off). In game with your 400 cm chains: lowest joints 0.2 - 0.3 cm above the floor, also
+  after walking with the point lowered to 16 cm; screenshot: the chains lie in a curve on the floor.
+
 ## Known limits
 
 - When held back she walks on the spot (the game's walk animation plays against the chain).

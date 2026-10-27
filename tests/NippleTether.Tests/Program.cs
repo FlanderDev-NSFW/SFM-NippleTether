@@ -119,18 +119,30 @@ namespace NippleTether.Tests
             Check(c.Segments == 1 && c.Length >= c.MinLength, "never shorter than half a link");
         }
 
-        /// <summary>A floor at y = 0 and a post (vertical cylinder) as level geometry.</summary>
+        /// <summary>A floor at y = 0 and a post (vertical cylinder) as level geometry. <see cref="ThinFloor"/>: like a floor's
+        /// mesh in the game, a joint is pushed out of it only near its top (within 2 cm below); <see cref="NoSweep"/>: not swept.
+        /// As Unity's sphere cast, a sweep ignores the floor when it starts touching it.</summary>
         private sealed class Level : IObstacles
         {
             public Vector3 Post = new Vector3(0f, 0f, 0.5f);
             public float PostRadius = 0.05f;
-            public bool HasPost;
+            public bool HasPost, ThinFloor, NoSweep;
+
+            public bool Sweep(Vector3 from, ref Vector3 to, float radius, out Vector3 normal)
+            {
+                normal = Vector3.UnitY;
+                if (NoSweep || from.Y < radius + 1e-4f || to.Y >= radius) return false;
+                float t = (from.Y - radius) / (from.Y - to.Y);
+                to = Vector3.Lerp(from, to, t);
+                to.Y = radius;
+                return true;
+            }
 
             public bool PushOut(ref Vector3 p, float radius, out Vector3 normal)
             {
                 normal = Vector3.UnitY;
                 bool moved = false;
-                if (p.Y < radius) { p.Y = radius; moved = true; }
+                if (p.Y < radius && !(ThinFloor && p.Y < -0.02f)) { p.Y = radius; moved = true; }
                 if (HasPost)
                 {
                     var d = new Vector2(p.X - Post.X, p.Z - Post.Z);
@@ -160,6 +172,24 @@ namespace NippleTether.Tests
             Vector3 m = c.Joint(c.Count / 2);
             Run(c, a, b, 1f);
             Check(Vector3.Distance(m, c.Joint(c.Count / 2)) < 0.01f, "floor: lying chain stays put (friction)");
+            // A long chain falling onto a thin floor (400 cm at home in the game: it hung through the floor). Swept, it lands on it;
+            // pushed out only (control), it falls through.
+            var thin = new Level { ThinFloor = true };
+            var fa = new Vector3(0f, 1.2f, 0f);
+            var fb = new Vector3(0f, 1.2f, 0.6f);
+            c = new TetherChain(Pitch, Thick, 4f) { Environment = thin };
+            Run(c, fa, fb, 4f);
+            Check(Lowest(c) >= Thick - 1e-4f, "thin floor: a long chain falling onto it lies on it (lowest " + Lowest(c) + ")");
+            thin.NoSweep = true;
+            c = new TetherChain(Pitch, Thick, 4f) { Environment = thin };
+            Run(c, fa, fb, 4f);
+            Check(Lowest(c) < -0.1f, "thin floor (control, not swept): it falls through (lowest " + Lowest(c) + ")");
+            // Laid out below the floor (the point put down under it): from the nipple, swept joint by joint, it stays above.
+            thin.NoSweep = false;
+            c = new TetherChain(Pitch, Thick, 2f) { Environment = thin };
+            c.Update(1f / 60f, new Vector3(0f, 0.3f, 0f), new Vector3(0f, 0.3f, 0.5f));
+            Check(Lowest(c) >= Thick - 1e-4f, "thin floor: a new layout that would sag through it is laid on it (lowest " + Lowest(c) + ")");
+
             var free = new TetherChain(Pitch, Thick, 2f);
             Run(free, a, b, 4f);
             Check(Lowest(free) < -0.3f, "control without the level: it hangs through the floor (" + Lowest(free) + ")");

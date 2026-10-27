@@ -366,7 +366,7 @@ namespace NippleTether
             _probe ??= new EnvironmentProbe();
             var player = PlayerController.Instance;
             _probe.Player = player == null ? null : player.transform;
-            _probe.Queries = _probe.Pushes = 0;
+            _probe.Queries = _probe.Pushes = _probe.Sweeps = _probe.Stops = 0;
             if (_pitch <= 0f) LinkSize();
             if (_needPoint) PlacePoint();
             BodyColliders((debug & 4) == 0 && Plugin.BodyCollision.Value);
@@ -402,7 +402,7 @@ namespace NippleTether
             sb.Append("point ").Append(PointMode ? "held by the player" : "fixed").Append(" ").Append(Cm(NVector3.Distance(mid, _point))).Append(" cm away, ")
               .Append(Cm(_point.Y - mid.Y)).Append(" cm up; length ").Append(Cm(_length)).Append(" (target ").Append(Cm(_target)).Append(") cm; held back ")
               .Append(Cm(_held.Length())).Append(" cm last frame, ").Append(Cm(_dragged)).Append(" cm in all; probes ").Append(_probe.Queries)
-              .Append(", pushed ").Append(_probe.Pushes);
+              .Append(", pushed ").Append(_probe.Pushes).Append(", swept ").Append(_probe.Sweeps).Append(", stopped ").Append(_probe.Stops);
             Status = sb.ToString();
         }
 
@@ -654,6 +654,32 @@ namespace NippleTether
             if (Instance == null) return "no controller";
             Instance.PutOn();
             return Instance.Machine.State.ToString();
+        }
+
+        /// <summary>Diagnostics: her feet, the chains' lowest joints and what is below her (every collider a ray down from her
+        /// hips meets: name, layer, type, height).</summary>
+        public static string Floor()
+        {
+            var player = PlayerController.Instance;
+            if (Instance == null || player == null) return "no controller";
+            var sb = new StringBuilder();
+            Vector3 feet = player.transform.position;
+            sb.Append("feet y ").Append(feet.y.ToString("0.000", CultureInfo.InvariantCulture));
+            foreach (var s in Instance._sides)
+            {
+                if (s.Chain == null) continue;
+                float low = float.MaxValue;
+                for (int k = 0; k < s.Chain.Count; k++) low = Math.Min(low, s.Chain.Joint(k).Y);
+                sb.Append("; ").Append(s.Name).Append(" lowest y ").Append(low.ToString("0.000", CultureInfo.InvariantCulture));
+            }
+            foreach (var h in Physics.RaycastAll(feet + Vector3.up * 0.8f, Vector3.down, 3f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                var c = h.collider;
+                if (c == null) continue;
+                sb.Append("; ").Append(c.name).Append(" [").Append(LayerMask.LayerToName(c.gameObject.layer)).Append(", ")
+                  .Append(c.GetIl2CppType().Name).Append("] y ").Append(h.point.y.ToString("0.000", CultureInfo.InvariantCulture));
+            }
+            return sb.ToString();
         }
 
         /// <summary>Diagnostics: move the point by x,y,z metres (world).</summary>
