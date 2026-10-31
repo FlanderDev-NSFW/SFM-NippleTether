@@ -1,4 +1,4 @@
-# NippleTether 1.0.0
+# NippleTether 1.0.1
 
 Two chains for **Secret Flasher Manaka**, one from each nipple to a point in the air. The chains hang, lie on her body and
 the floor, and when they are pulled tight they stretch her breasts and keep her from walking further away.
@@ -41,6 +41,7 @@ walk further away from the point.
 - The point's position is not saved: after loading it is placed in front of her again.
 - The chains pass through clothes.
 - When held back she walks on the spot.
+- Very long chains cost frame rate: two 400 cm chains about 4 ms a frame (the default 100 cm about 1 ms).
 
 Single-player / offline only. Code: MIT licence (`LICENSE.txt`). Models: "Assorted Piercings" by hellsquad2, CC BY-NC-ND 4.0 (smutba.se; details in `LICENSE-MODELS.txt`).
 

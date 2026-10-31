@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using ExposureUnnoticed2.Object3D.Player.Scripts;
@@ -386,8 +387,12 @@ namespace NippleTether
                 c.Colliders.Clear();
                 c.Colliders.AddRange(_colliders);
                 c.Environment = (debug & 8) == 0 && Plugin.LevelCollision.Value ? _probe : null;
+                long t0 = Stopwatch.GetTimestamp();
                 c.Update(Time.deltaTime, s.Hook, _point);
+                long t1 = Stopwatch.GetTimestamp();
                 _rig.PlaceLinks(i, c, _linkScale);
+                _solveTicks += t1 - t0;
+                _placeTicks += Stopwatch.GetTimestamp() - t1;
                 s.Pull.MaxStretch = MaxStretch;
                 s.Pull.Tolerance = 0.004f + 0.005f * _length;
                 s.Pull.Update(Time.deltaTime, c.Stretch, c.PullDirection);
@@ -404,7 +409,21 @@ namespace NippleTether
               .Append(Cm(_held.Length())).Append(" cm last frame, ").Append(Cm(_dragged)).Append(" cm in all; probes ").Append(_probe.Queries)
               .Append(", pushed ").Append(_probe.Pushes).Append(", swept ").Append(_probe.Sweeps).Append(", stopped ").Append(_probe.Stops);
             Status = sb.ToString();
+            if (++_timedFrames >= 120)
+            {
+                double ms = 1000.0 / Stopwatch.Frequency / _timedFrames;
+                Timing = "chains " + (_solveTicks * ms).ToString("0.00", CultureInfo.InvariantCulture) + " ms, links placed "
+                         + (_placeTicks * ms).ToString("0.00", CultureInfo.InvariantCulture) + " ms a frame (average of " + _timedFrames + ")";
+                _solveTicks = _placeTicks = 0;
+                _timedFrames = 0;
+            }
         }
+
+        /// <summary>Diagnostics: the tether's own time per frame, averaged over 120 frames - solving the chains (with their body and
+        /// level collisions) and placing the links' objects.</summary>
+        public static string Timing = "-";
+        private long _solveTicks, _placeTicks;
+        private int _timedFrames;
 
         /// <summary>The ring through the nipple (NipplePiercings' "ring", sized to the nipple, through it a little behind the tip),
         /// swung about the pierced point towards its chain; the chain hangs from its bottom. Without the ring (a NipplePiercings

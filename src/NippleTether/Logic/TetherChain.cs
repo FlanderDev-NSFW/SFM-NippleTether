@@ -46,6 +46,34 @@ namespace NippleTether.Logic
         private bool[] _hit = Array.Empty<bool>();   // joints the level pushed this frame
         private readonly List<Vector3> _checked = new List<Vector3>(); // each joint after the last check against the level
         private bool _checkedValid;                  // false after a new layout: swept from the joint before instead
+
+        /// <summary>
+        /// What a joint touched at its last full check: nothing (<see cref="LevelKind.Free"/>: only its way is swept until the
+        /// next one), or a surface - kept as the plane through the joint's place on it (<see cref="Level.At"/>, the joint's
+        /// centre when it was pushed out) and its normal. Every joint gets a full check every <see cref="RequeryFrames"/> frames
+        /// (staggered along the chain) or when it leaves the remembered spot by more than <see cref="SurfaceReach"/>. All of them
+        /// checked fully every frame cost 4.6 ms a frame with two 400 cm chains on the floor [measured 2026-10-27].
+        /// </summary>
+        private enum LevelKind : byte { Unknown, Free, Surface }
+
+        private readonly struct Level
+        {
+            public readonly LevelKind Kind;
+            public readonly Vector3 At, Normal;
+            public Level(LevelKind kind, Vector3 at, Vector3 normal) { Kind = kind; At = at; Normal = normal; }
+        }
+
+        public const int RequeryFrames = 4;
+        public const float SurfaceReach = 0.02f;
+        private readonly List<Level> _level = new List<Level>();
+        private int _frame;
+
+        /// <summary>Full checks against the level so far (diagnostics, tests).</summary>
+        public int FullChecks { get; private set; }
+
+        // Her body's colliders' box (grown by the thickness): joints outside it skip the body test.
+        private Vector3 _bodyMin, _bodyMax;
+        private bool _bodyBounded;
         private float _scale = 1f;                   // the links' lengths while the ends are held further apart than the chain is long
         private float _length, _carry;
         private bool _hung;
@@ -69,7 +97,7 @@ namespace NippleTether.Logic
             Thickness = thickness;
             _length = Math.Max(length, MinLength);
             int segments = Math.Max(1, (int)Math.Ceiling(_length / pitch - 0.25f));
-            for (int k = 0; k <= segments; k++) { _x.Add(Vector3.Zero); _prev.Add(Vector3.Zero); _contact.Add(Vector3.Zero); _checked.Add(Vector3.Zero); }
+            for (int k = 0; k <= segments; k++) { _x.Add(Vector3.Zero); _prev.Add(Vector3.Zero); _contact.Add(Vector3.Zero); _checked.Add(Vector3.Zero); _level.Add(default); }
         }
 
         public float MinLength => Pitch * 0.5f;
@@ -112,6 +140,7 @@ namespace NippleTether.Logic
                     _prev.Insert(n, p - v);
                     _contact.Insert(n, Vector3.Zero);
                     _checked.Insert(n, Vector3.Lerp(_checked[n - 1], _checked[n], t));
+                    _level.Insert(n, default);
                 }
                 else if (last < 0.25f * Pitch && n > 1)
                 {
@@ -119,6 +148,7 @@ namespace NippleTether.Logic
                     _prev.RemoveAt(n - 1);
                     _contact.RemoveAt(n - 1);
                     _checked.RemoveAt(n - 1);
+                    _level.RemoveAt(n - 1);
                 }
                 else return;
             }
@@ -127,6 +157,7 @@ namespace NippleTether.Logic
         public void Update(float dt, Vector3 a, Vector3 b)
         {
             int n = Segments;
+            BodyBounds();
             if (!_hung || Vector3.Distance(a, _x[0]) > TeleportDistance || Vector3.Distance(b, _x[n]) > TeleportDistance)
             {
                 Hang(a, b);
@@ -177,15 +208,43 @@ namespace NippleTether.Logic
         {
             int n = Segments;
             EnvironmentContacts = 0;
+            _frame++;
             if (_hit.Length < n + 1) _hit = new bool[2 * (n + 1)];
             for (int k = 1; k < n; k++)
             {
                 Vector3 p = _x[k];
                 Vector3 from = _checkedValid ? _checked[k] : _x[k - 1];
-                bool swept = SweepFrom(from, ref p, out Vector3 sweptNormal);
-                _hit[k] = Environment.PushOut(ref p, Thickness, out Vector3 normal);
-                if (swept && !_hit[k]) normal = sweptNormal;
-                _hit[k] |= swept;
+                Vector3 normal;
+                var level = _level[k];
+                if (!_checkedValid || level.Kind == LevelKind.Unknown || (_frame + k) % RequeryFrames == 0
+                    || (level.Kind == LevelKind.Surface && Vector3.DistanceSquared(p, level.At) > SurfaceReach * SurfaceReach))
+                {
+                    // Full check: swept from where it was, then pushed out of what it overlaps; what it touches is remembered.
+                    bool swept = SweepFrom(from, ref p, out Vector3 sweptNormal);
+                    _hit[k] = Environment.PushOut(ref p, Thickness, out normal);
+                    if (swept && !_hit[k]) normal = sweptNormal;
+                    _hit[k] |= swept;
+                    _level[k] = _hit[k] ? new Level(LevelKind.Surface, p, normal) : new Level(LevelKind.Free, p, Vector3.UnitY);
+                    FullChecks++;
+                }
+                else if (level.Kind == LevelKind.Surface)
+                {
+                    // Resting on what it touched last: kept above that surface's plane (exact for a floor or a wall), and its
+                    // way swept like a free joint's - with only a wall's plane remembered, a joint sank through the floor
+                    // between two full checks and stayed under it [observed 2026-10-27, 1.5 cm below after walking].
+                    bool swept = SweepFrom(from, ref p, out Vector3 sweptNormal);
+                    if (swept) _level[k] = level = new Level(LevelKind.Surface, p, sweptNormal);
+                    normal = level.Normal;
+                    float below = Vector3.Dot(level.At - p, normal);
+                    _hit[k] = swept || below > 0f;
+                    if (below > 0f) p += normal * below;
+                }
+                else
+                {
+                    // Free last time: only the way it moved can meet something (a sweep sees what it runs into).
+                    _hit[k] = SweepFrom(from, ref p, out normal);
+                    if (_hit[k]) _level[k] = new Level(LevelKind.Surface, p, normal);
+                }
                 if (!_hit[k]) continue;
                 EnvironmentContacts++;
                 _x[k] = p;
@@ -206,7 +265,13 @@ namespace NippleTether.Logic
                 {
                     Vector3 p = _x[k];
                     bool moved = SweepFrom(_checked[k], ref p, out _);
-                    if ((_hit[k] || moved) && Environment.PushOut(ref p, Thickness, out _)) moved = true;
+                    var level = _level[k];
+                    if (_hit[k] && level.Kind == LevelKind.Surface)
+                    {
+                        float below = Vector3.Dot(level.At - p, level.Normal);
+                        if (below > 0f) { p += level.Normal * below; moved = true; }
+                    }
+                    else if ((_hit[k] || moved) && Environment.PushOut(ref p, Thickness, out _)) moved = true;
                     if (moved) _x[k] = p;
                 }
             }
@@ -339,8 +404,27 @@ namespace NippleTether.Logic
             _checkedValid = false;
         }
 
+        /// <summary>The box around her body's colliders, grown by the thickness (a 400 cm chain mostly lies far from her:
+        /// testing every joint against every collider cost 2 ms a frame [measured 2026-10-27]).</summary>
+        private void BodyBounds()
+        {
+            _bodyBounded = Colliders.Count > 0;
+            _bodyMin = new Vector3(float.MaxValue);
+            _bodyMax = new Vector3(float.MinValue);
+            foreach (var c in Colliders)
+            {
+                if (c.Shape == Collider.ShapeKind.Plane) { _bodyBounded = false; return; } // unbounded: test every joint
+                Vector3 r = new Vector3(c.Radius + Thickness);
+                _bodyMin = Vector3.Min(_bodyMin, Vector3.Min(c.A, c.B) - r);
+                _bodyMax = Vector3.Max(_bodyMax, Vector3.Max(c.A, c.B) + r);
+            }
+        }
+
         private void PushOut(int k)
         {
+            Vector3 x = _x[k];
+            if (_bodyBounded && (x.X < _bodyMin.X || x.Y < _bodyMin.Y || x.Z < _bodyMin.Z || x.X > _bodyMax.X || x.Y > _bodyMax.Y || x.Z > _bodyMax.Z))
+                return;
             float deepest = 0f;
             Vector3 way = Vector3.Zero;
             foreach (var c in Colliders)

@@ -21,7 +21,7 @@ namespace NippleTether
     {
         public const string PluginGuid = "FlanderDev.SFM.NippleTether";
         public const string PluginName = "NippleTether";
-        public const string PluginVersion = "1.0.0";
+        public const string PluginVersion = "1.0.1";
         internal const string ModelResource = "NippleTether.assets.piercings.npd";
 
         internal static ManualLogSource Logger;

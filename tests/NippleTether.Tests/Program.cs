@@ -138,8 +138,11 @@ namespace NippleTether.Tests
                 return true;
             }
 
+            public int PushOuts;
+
             public bool PushOut(ref Vector3 p, float radius, out Vector3 normal)
             {
+                PushOuts++;
                 normal = Vector3.UnitY;
                 bool moved = false;
                 if (p.Y < radius && !(ThinFloor && p.Y < -0.02f)) { p.Y = radius; moved = true; }
@@ -169,6 +172,20 @@ namespace NippleTether.Tests
             Run(c, a, b, 4f);
             Check(Lowest(c) >= Thick - 1e-4f, "floor: the chain lies on it, not in it (lowest " + Lowest(c) + ")");
             Check(c.EnvironmentContacts > 20, "floor: many joints rest on it (" + c.EnvironmentContacts + ")");
+
+            // Remembered contacts: a 4 m chain at rest on the floor is fully checked about once in RequeryFrames frames per
+            // joint (every joint every frame cost 4.6 ms a frame in game for two such chains), and still lies on it.
+            {
+                var rest = new Level();
+                var lying = new TetherChain(Pitch, Thick, 4f) { Environment = rest };
+                Run(lying, new Vector3(0f, 0.3f, 0f), new Vector3(0f, 0.3f, 0.6f), 4f);
+                int checks = lying.FullChecks, pushOuts = rest.PushOuts;
+                Run(lying, new Vector3(0f, 0.3f, 0f), new Vector3(0f, 0.3f, 0.6f), 1f);
+                float perFrame = (lying.FullChecks - checks) / 60f, joints = lying.Count - 2;
+                Check(perFrame <= joints / TetherChain.RequeryFrames * 1.3f, "level: about joints / " + TetherChain.RequeryFrames + " full checks a frame at rest (" + perFrame.ToString("0") + " of " + joints + ")");
+                Check((rest.PushOuts - pushOuts) / 60f < joints * 0.6f, "level: fewer than every joint pushed out through the level each frame (" + ((rest.PushOuts - pushOuts) / 60f).ToString("0") + ")");
+                Check(Lowest(lying) >= Thick - 1e-3f, "level: with remembered contacts the chain still lies on the floor (lowest " + Lowest(lying) + ")");
+            }
             Vector3 m = c.Joint(c.Count / 2);
             Run(c, a, b, 1f);
             Check(Vector3.Distance(m, c.Joint(c.Count / 2)) < 0.01f, "floor: lying chain stays put (friction)");

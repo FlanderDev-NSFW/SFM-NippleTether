@@ -117,6 +117,18 @@ point's distance and height, length and target, how far she was moved, level pro
   layout test fails without the back-off). In game with your 400 cm chains: lowest joints 0.2 - 0.3 cm above the floor, also
   after walking with the point lowered to 16 cm; screenshot: the chains lie in a curve on the floor.
 
+- L3 1.0.1 (2026-10-27, frame rate check with everything worn): two 400 cm chains (2 x 267 links) cost 4 ms a frame
+  (all off 5.2 ms, tether alone 9.2 ms; dev machine, frame cap lifted for the measurement). Of the tether's own time
+  (`game get NippleTether.TetherController::Timing`) the level check took 4.0 ms: every joint swept and pushed out through
+  the physics engine every frame. Now each joint remembers what it touched (a surface: kept above its plane, its way still
+  swept; nothing: only its way swept) and gets a full check every 4th frame, staggered, or when it leaves the spot by 2 cm;
+  her body's colliders are skipped for joints outside their box. Tether time 4.0 -> 1.1-2.5 ms (control: the 1.0.0 code
+  measured in the same scene); the chains still lie on the floor after walking back and forth three times (lowest joints
+  0.2-0.3 cm above it). A first version kept only the remembered plane: a joint resting against a wall sank 1.5 cm through
+  the floor while she walked - its way is swept again since. The rest of the cost (about 2 ms at 400 cm, 1 ms at 100 cm)
+  is the game handling one object per link: the same with GPU instancing on or off and with or without the links' shadows.
+  At the default 100 cm the tether costs 1.3 ms a frame (0.2 ms its own work).
+
 ## Known limits
 
 - When held back she walks on the spot (the game's walk animation plays against the chain).
