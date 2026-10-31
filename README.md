@@ -3,6 +3,8 @@
 Two chains for **Secret Flasher Manaka**, one from each nipple to a point in the air. The chains hang, lie on her body and
 the floor, and when they are pulled tight they stretch her breasts and keep her from walking further away.
 
+Models: ["Assorted Piercings"](https://smutba.se/project/88b66562-04d2-4dd5-9dcc-ab4607c4df8e/) by hellsquad2 ([CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/)).
+
 ## Requirements
 - Secret Flasher Manaka (tested with v1.1.3)
 - BepInEx 6 for IL2CPP (tested with build 738)
@@ -43,7 +45,7 @@ walk further away from the point.
 - When held back she walks on the spot.
 - Very long chains cost frame rate: two 400 cm chains about 4 ms a frame (the default 100 cm about 1 ms).
 
-Single-player / offline only. Code: MIT licence (`LICENSE.txt`). Models: "Assorted Piercings" by hellsquad2, CC BY-NC-ND 4.0 (smutba.se; details in `LICENSE-MODELS.txt`).
+Single-player / offline only. Code: MIT licence (`LICENSE.txt`). Models: ["Assorted Piercings"](https://smutba.se/project/88b66562-04d2-4dd5-9dcc-ab4607c4df8e/) by hellsquad2, CC BY-NC-ND 4.0 (smutba.se; details in `LICENSE-MODELS.txt`).
 
 ## Building from source
 - .NET SDK 8, and a copy of the game with BepInEx 6 IL2CPP started once: copy `Directory.Build.local.props.example` to
