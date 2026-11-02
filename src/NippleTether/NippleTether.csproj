@@ -5,7 +5,7 @@
   <PropertyGroup>
     <AssemblyName>NippleTether</AssemblyName>
     <RootNamespace>NippleTether</RootNamespace>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Description>NippleTether - chains from both nipples to a point she or the player moves (SecretFlasherManaka, BepInEx IL2CPP)</Description>
     <!-- Compiles against RestraintHub (build/SfmMod.targets); players install it separately. -->
     <SfmUsesRestraintHub>true</SfmUsesRestraintHub>

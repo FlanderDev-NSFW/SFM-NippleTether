@@ -16,12 +16,12 @@ namespace NippleTether
     /// chains out and take them in. Taut chains draw her breasts out and hold her back (<see cref="TetherController"/>).
     /// </summary>
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
-    [BepInDependency(Hub.Guid, "1.0.0")] // OnTap, HeldStep, OnSave / OnLoad / OnNewGame, MenuOpen
+    [BepInDependency(Hub.Guid, "^1.1.0")] // OnTap, HeldStep, OnSave / OnLoad / OnNewGame, MenuOpen; PutOn / TakeOff / Settings (missions)
     public sealed class Plugin : BasePlugin
     {
         public const string PluginGuid = "FlanderDev.SFM.NippleTether";
         public const string PluginName = "NippleTether";
-        public const string PluginVersion = "1.0.1";
+        public const string PluginVersion = "1.1.0";
         internal const string ModelResource = "NippleTether.assets.piercings.npd";
 
         internal static ManualLogSource Logger;
@@ -103,7 +103,18 @@ namespace NippleTether
                 Holds = BodyParts.Spot,   // it holds her near a place and moves her
                 IsWorn = () => TetherController.Instance != null && TetherController.Instance.Machine.Worn,
                 Blocks = () => RestraintHub.Blocks.None,
-                OnChosen = () => { var c = TetherController.Instance; if (c != null) c.PutOn(); },
+                OnChosen = () => { var c = TetherController.Instance; if (c != null) c.OnRingChosen(); },
+                PutOn = () => TetherController.Instance == null ? "not ready" : TetherController.Instance.PutOn(),
+                TakeOff = () => TetherController.Instance?.TakeOff(),
+                Settings = new[]
+                {
+                    new RestraintSetting
+                    {
+                        Name = "length", Unit = "cm",
+                        Get = () => TetherController.Instance == null ? float.NaN : TetherController.Instance.TargetCm,
+                        Set = v => TetherController.Instance == null ? "not ready" : TetherController.Instance.SetLength(v),
+                    },
+                },
                 Attempt = () => TetherController.Instance == null ? 0f : TetherController.Instance.Machine.Attempt,
                 OnInput = i => { var c = TetherController.Instance; if (c != null) c.OnInput(i); },
                 OnTap = () => TetherController.Instance?.OnTap(),

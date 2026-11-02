@@ -128,6 +128,7 @@ point's distance and height, length and target, how far she was moved, level pro
   the floor while she walked - its way is swept again since. The rest of the cost (about 2 ms at 400 cm, 1 ms at 100 cm)
   is the game handling one object per link: the same with GPU instancing on or off and with or without the links' shadows.
   At the default 100 cm the tether costs 1.3 ms a frame (0.2 ms its own work).
+- L3 1.1.0 (2026-11-02, with RestraintHub 1.1.0 and the test missions - details in RestraintHub's `docs/RestraintHub.md`, L3 1.1.0): put on by missions, `keep` lock kept on when the mission was switched off, taken off by the escape key and by a mission; setting `length` 39.7 -> 50 -> 9999 clamped to 400 cm, config LengthCm unchanged.
 
 ## Known limits
 

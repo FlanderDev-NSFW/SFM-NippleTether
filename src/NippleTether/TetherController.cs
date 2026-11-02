@@ -609,19 +609,47 @@ namespace NippleTether
 
         /// <summary>The hub calls this (Restraint.OnChosen) when the player chooses the entry while it is off.</summary>
         [HideFromIl2Cpp]
-        internal void PutOn()
+        internal void OnRingChosen()
+        {
+            if (PutOn() != null) Hub.Message("Can't use the " + Plugin.RingLabel.Value + " now.");
+        }
+
+        /// <summary>Put it on (the ring entry, or a mission through RestraintHub): null when it is closing, else why not.</summary>
+        [HideFromIl2Cpp]
+        internal string PutOn()
         {
             if (_sides[0].Anchor == null || _sides[1].Anchor == null) FindBody();
-            if (_sides[0].Anchor == null || _sides[1].Anchor == null)
-            {
-                Hub.Message("Can't use the " + Plugin.RingLabel.Value + " now.");
-                return;
-            }
-            if (!Machine.RequestLock()) return;
+            if (_sides[0].Anchor == null || _sides[1].Anchor == null) return "her nipples were not found";
+            if (!Machine.RequestLock()) return "the tether is already on";
             _length = _target = Math.Clamp(Plugin.LengthCm.Value / 100f, Plugin.MinLengthCm.Value / 100f, Math.Max(Plugin.MinLengthCm.Value, Plugin.MaxLengthCm.Value) / 100f);
             NewChains();
             GameUi.PlaySe(InGameSoundManager.SeType.CommonEquip);
             Plugin.Logger.LogInfo("[SFM-ACCEPT] ring: put on, closing");
+            return null;
+        }
+
+        /// <summary>Take it off at once (a mission, its timer or the escape key, through RestraintHub).</summary>
+        [HideFromIl2Cpp]
+        internal void TakeOff()
+        {
+            if (Machine.Worn) Plugin.Logger.LogInfo("[SFM-ACCEPT] release: taken off");
+            Machine.Reset();
+            TakenOff();
+        }
+
+        /// <summary>The chains' length (cm) they run to (RestraintHub's setting "length").</summary>
+        internal float TargetCm => _target * 100f;
+
+        /// <summary>A mission's chain length (RestraintHub's setting "length", cm): the chains run there like with + / - (taken
+        /// in no shorter than she can follow), not stored in the config.</summary>
+        [HideFromIl2Cpp]
+        internal string SetLength(float cm)
+        {
+            if (!Machine.Worn) return "the tether is not on";
+            float min = Plugin.MinLengthCm.Value / 100f, max = Math.Max(min, Plugin.MaxLengthCm.Value / 100f);
+            _target = Math.Clamp(cm / 100f, min, max);
+            Plugin.Logger.LogInfo("[SFM-ACCEPT] length: target " + Cm(_target) + " cm (mission)");
+            return null;
         }
 
         [HideFromIl2Cpp]

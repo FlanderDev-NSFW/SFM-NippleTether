@@ -1,4 +1,4 @@
-# NippleTether 1.0.1
+# NippleTether 1.1.0
 
 Two chains for **Secret Flasher Manaka**, one from each nipple to a point in the air. The chains hang, lie on her body and
 the floor, and when they are pulled tight they stretch her breasts and keep her from walking further away.
@@ -8,7 +8,7 @@ Models: ["Assorted Piercings"](https://smutba.se/project/88b66562-04d2-4dd5-9dcc
 ## Requirements
 - Secret Flasher Manaka (tested with v1.1.3)
 - BepInEx 6 for IL2CPP (tested with build 738)
-- **RestraintHub 1.0.0** or newer
+- **RestraintHub 1.1.0** or newer
 - Optional: NipplePiercings. If she wears a piercing there, the chain hangs from it.
 
 ## Install
@@ -27,6 +27,8 @@ of her. With Nipple Tether selected in the worn list (`B` selects):
 
 The point floats and passes through walls. She can walk freely while the chains are slack; when they are tight she cannot
 walk further away from the point.
+
+Missions (Custom Missions v2) can put it on and lock it through RestraintHub: `RtHub_Apply("NippleTether")`, setting `length` (cm) - see [Missions.md](https://github.com/FlanderDev-NSFW/SFM-RestraintHub/blob/main/docs/Missions.md).
 
 ## Settings
 `BepInEx/config/FlanderDev.SFM.NippleTether.cfg` (created on the first start). Most useful:
