@@ -129,6 +129,7 @@ point's distance and height, length and target, how far she was moved, level pro
   is the game handling one object per link: the same with GPU instancing on or off and with or without the links' shadows.
   At the default 100 cm the tether costs 1.3 ms a frame (0.2 ms its own work).
 - L3 1.1.0 (2026-11-02, with RestraintHub 1.1.0 and the test missions - details in RestraintHub's `docs/RestraintHub.md`, L3 1.1.0): put on by missions, `keep` lock kept on when the mission was switched off, taken off by the escape key and by a mission; setting `length` 39.7 -> 50 -> 9999 clamped to 400 cm, config LengthCm unchanged.
+- L3 2.0.0 (2026-11-07, RestraintHub 2.0.0): ported to the hub's 2.0 API (`Wearable`; no ring entry, number keys or shortcut save key; the hub shows `PutOn`'s reason). In game: listed in the panel (`U`), listed; not put on in this test (same `PutOn` / `TakeOff` as 1.1, tested then).
 
 ## Known limits
 

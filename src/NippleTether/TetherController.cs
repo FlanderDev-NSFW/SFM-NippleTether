@@ -34,7 +34,6 @@ namespace NippleTether
     /// </summary>
     public sealed class TetherController : MonoBehaviour
     {
-        public const int RingItemValue = 9500;
         public const float UnitMetres = 0.065f / 2.67f;          // NipplePiercings: metres per model unit at Size 1, height 1
         public const float ReferenceNipple = 2.2385f / 1.3125f;  // NipplePiercings: piercing point's scale per unit of height
         public const float BakeInterval = 2f;
@@ -138,7 +137,7 @@ namespace NippleTether
             }
             float dt = Time.deltaTime;
 
-            // F: a tap hands the point over (Restraint.OnTap); holding it longer is the struggle (StruggleHeld, from the hub).
+            // F: a tap hands the point over (Wearable.OnTap); holding it longer is the struggle (StruggleHeld, from the hub).
             bool locked = Machine.State == LockState.Locked;
             Machine.AttemptSeconds = Plugin.AttemptSeconds.Value;
             Machine.BaseChance = Plugin.SuccessChance.Value;
@@ -607,14 +606,8 @@ namespace NippleTether
 
         // --- on and off --------------------------------------------------------------------------------------------------------
 
-        /// <summary>The hub calls this (Restraint.OnChosen) when the player chooses the entry while it is off.</summary>
-        [HideFromIl2Cpp]
-        internal void OnRingChosen()
-        {
-            if (PutOn() != null) Hub.Message("Can't use the " + Plugin.RingLabel.Value + " now.");
-        }
 
-        /// <summary>Put it on (the ring entry, or a mission through RestraintHub): null when it is closing, else why not.</summary>
+        /// <summary>Put it on (the hub's panel, or a mission): null when it is closing, else why not.</summary>
         [HideFromIl2Cpp]
         internal string PutOn()
         {
@@ -680,7 +673,7 @@ namespace NippleTether
             Plugin.Logger.LogInfo("[SFM-ACCEPT] control: " + (PointMode ? "point" : "player"));
         }
 
-        /// <summary>RestraintHub's Restraint.OnTap: F tapped while the tether is selected.</summary>
+        /// <summary>RestraintHub's Wearable.OnTap: F tapped while the tether is selected.</summary>
         [HideFromIl2Cpp]
         internal void OnTap()
         {
@@ -695,7 +688,7 @@ namespace NippleTether
             return PointMode ? "point" : "player";
         }
 
-        /// <summary>Diagnostics: put it on as the ring entry would (skips the hub's conflict check).</summary>
+        /// <summary>Diagnostics: put it on as the panel would (skips the hub's conflict check).</summary>
         public static string PutOnNow()
         {
             if (Instance == null) return "no controller";
@@ -764,7 +757,6 @@ namespace NippleTether
 
         internal const string SaveKeyLocked = "NippleTether.Locked";
         internal const string SaveKeyChance = "NippleTether.Chance";
-        internal const string SaveKeyShortcuts = "NippleTether.Shortcuts"; // written by the hub
 
         [HideFromIl2Cpp]
         internal void OnSave(SaveSlot slot)

@@ -1,4 +1,4 @@
-# NippleTether 1.1.0
+# NippleTether 2.0.0
 
 Two chains for **Secret Flasher Manaka**, one from each nipple to a point in the air. The chains hang, lie on her body and
 the floor, and when they are pulled tight they stretch her breasts and keep her from walking further away.
@@ -8,14 +8,14 @@ Models: ["Assorted Piercings"](https://smutba.se/project/88b66562-04d2-4dd5-9dcc
 ## Requirements
 - Secret Flasher Manaka (tested with v1.1.3)
 - BepInEx 6 for IL2CPP (tested with build 738)
-- **RestraintHub 1.1.0** or newer
+- **RestraintHub 2.0.0** or newer (2.x)
 - Optional: NipplePiercings. If she wears a piercing there, the chain hangs from it.
 
 ## Install
 Extract the zip into the game folder (the folder with `SecretFlasherManaka.exe`). You get `BepInEx/plugins/NippleTether/`.
 
 ## How to use
-Hold a ring key (e.g. `1`), page with `Z` / `X` to the restraint page and click **Nipple Tether**. The point appears in front
+Open the restraint panel with `U` and click **Nipple Tether** (in Wearables). The point appears in front
 of her. With Nipple Tether selected in the worn list (`B` selects):
 
 | Key | Does |

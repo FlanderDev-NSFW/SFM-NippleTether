@@ -16,16 +16,16 @@ namespace NippleTether
     /// chains out and take them in. Taut chains draw her breasts out and hold her back (<see cref="TetherController"/>).
     /// </summary>
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
-    [BepInDependency(Hub.Guid, "^1.1.0")] // OnTap, HeldStep, OnSave / OnLoad / OnNewGame, MenuOpen; PutOn / TakeOff / Settings (missions)
+    [BepInDependency(Hub.Guid, "^2.0.0")] // RestraintHub 2: the panel (U), PutOn / TakeOff, mission settings
     public sealed class Plugin : BasePlugin
     {
         public const string PluginGuid = "FlanderDev.SFM.NippleTether";
         public const string PluginName = "NippleTether";
-        public const string PluginVersion = "1.1.0";
+        public const string PluginVersion = "2.0.0";
         internal const string ModelResource = "NippleTether.assets.piercings.npd";
 
         internal static ManualLogSource Logger;
-        internal static Restraint Entry;
+        internal static Wearable Entry;
         // public: tunable live with the bridge (game set)
         public static ConfigEntry<string> RingLabel, UpKey, DownKey;
         public static ConfigEntry<float> LengthCm, StepCm, LengthSpeed, MinLengthCm, MaxLengthCm, LinkCm, Damping, Gravity, Friction;
@@ -36,7 +36,7 @@ namespace NippleTether
         public override void Load()
         {
             Logger = Log;
-            RingLabel = Config.Bind("General", "RingLabel", "Nipple Tether", "Name in the ring menu and the restraint list.");
+            RingLabel = Config.Bind("General", "RingLabel", "Nipple Tether", "Name in the restraint panel and the worn list.");
             LengthCm = Config.Bind("Chain", "LengthCm", 100f, new ConfigDescription(
                 "Length of each chain (cm; + / - change it while the tether is selected, and store it here).", new AcceptableValueRange<float>(10f, 400f)));
             StepCm = Config.Bind("Chain", "StepCm", 2f, new ConfigDescription(
@@ -94,16 +94,13 @@ namespace NippleTether
             }
             ClassInjector.RegisterTypeInIl2Cpp<TetherController>();
             AddComponent<TetherController>();
-            Entry = new Restraint
+            Entry = new Wearable
             {
                 Id = "NippleTether",
-                RingValue = TetherController.RingItemValue,
                 Label = () => RingLabel.Value,
-                ShortcutSaveKey = TetherController.SaveKeyShortcuts,
                 Holds = BodyParts.Spot,   // it holds her near a place and moves her
                 IsWorn = () => TetherController.Instance != null && TetherController.Instance.Machine.Worn,
                 Blocks = () => RestraintHub.Blocks.None,
-                OnChosen = () => { var c = TetherController.Instance; if (c != null) c.OnRingChosen(); },
                 PutOn = () => TetherController.Instance == null ? "not ready" : TetherController.Instance.PutOn(),
                 TakeOff = () => TetherController.Instance?.TakeOff(),
                 Settings = new[]
