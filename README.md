@@ -1,4 +1,4 @@
-# NippleTether 2.0.0
+# NippleTether 2.1.0
 
 Two chains for **Secret Flasher Manaka**, one from each nipple to a point in the air. The chains hang, lie on her body and
 the floor, and when they are pulled tight they stretch her breasts and keep her from walking further away.
@@ -10,6 +10,7 @@ Models: ["Assorted Piercings"](https://smutba.se/project/88b66562-04d2-4dd5-9dcc
 - BepInEx 6 for IL2CPP (tested with build 738)
 - **RestraintHub 2.0.0** or newer (2.x)
 - Optional: NipplePiercings. If she wears a piercing there, the chain hangs from it.
+- Optional: **BreastPhysics** 1.0.0 or newer. The chains then pull in its simulation: breasts give to them, swing and come to rest.
 
 ## Install
 Extract the zip into the game folder (the folder with `SecretFlasherManaka.exe`). You get `BepInEx/plugins/NippleTether/`.
@@ -38,7 +39,7 @@ Missions (Custom Missions v2) can put it on and lock it through RestraintHub: `R
 | Chain.LengthCm | 100 | chain length (`+` / `-` change it) |
 | Chain.MinLengthCm / MaxLengthCm | 15 / 300 | range of `+` / `-` |
 | Breasts.MaxStretchCm | 4 | how far the breasts can be pulled before she is held back |
-| Breasts.Elongation | 1.5 | how much a pull stretches the breasts (0 = they only turn towards the chain) |
+| Breasts.Elongation | 1.5 | how much a pull stretches the breasts (0 = they only turn towards the chain); without BreastPhysics |
 | Unlock.SuccessChance | 1 | chance that struggling frees her (1 = first try) |
 
 ## Good to know

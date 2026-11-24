@@ -104,6 +104,7 @@ namespace NippleTether.Logic
         public int Count => _x.Count;
         public int Segments => _x.Count - 1;
         public Vector3 Joint(int k) => _x[k];
+        public IReadOnlyList<Vector3> Joints => _x;
         public float Length => _length;
 
         /// <summary>Rest length of segment k: a link's pitch, the last one (at B) what is left, 0.25 .. 1.25 pitches.</summary>

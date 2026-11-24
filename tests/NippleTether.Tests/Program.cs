@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
 using NipplePiercings.Logic;
@@ -24,6 +25,7 @@ namespace NippleTether.Tests
             LengthTests();
             ObstacleTests();
             PullTests();
+            CaughtTests();
             PointTests();
             string modelPath = Path.Combine(AppContext.BaseDirectory, "piercings.npd");
             if (File.Exists(modelPath)) ModelTests(modelPath);
@@ -53,6 +55,89 @@ namespace NippleTether.Tests
             float worst = 0f;
             for (int k = 0; k < c.Segments; k++) worst = Math.Max(worst, Math.Abs(Vector3.Distance(c.Joint(k), c.Joint(k + 1)) - c.Rest(k)));
             return worst;
+        }
+
+        /// <summary>Joints along straight pieces, as a taut chain lies.</summary>
+        private static List<Vector3> Along(params Vector3[] corners)
+        {
+            var r = new List<Vector3> { corners[0] };
+            for (int i = 0; i + 1 < corners.Length; i++)
+            {
+                float l = Vector3.Distance(corners[i], corners[i + 1]);
+                int n = Math.Max(1, (int)(l / Pitch));
+                for (int k = 1; k <= n; k++) r.Add(Vector3.Lerp(corners[i], corners[i + 1], (float)k / n));
+            }
+            return r;
+        }
+
+        private static void CaughtTests()
+        {
+            Vector3 post = A + new Vector3(0.3f, 0f, 0f), b = post + new Vector3(0f, 0f, 0.4f);
+            float length = 0.7f;
+            var free = new CaughtChain();
+            free.Update(1f / 60f, Along(A, A + new Vector3(0f, 0f, 0.71f)), length, 0.01f, 0.004f, A, 1f);
+            Check(!free.Caught, "caught: a straight taut chain is held by its point");
+            free.Update(1f / 60f, Along(A, A + new Vector3(0.1f, -0.25f, 0f), A + new Vector3(0.2f, 0f, 0f)), length, 0f, 0.004f, A, 1f);
+            Check(!free.Caught, "caught: a slack chain is not");
+            var joints = Along(A, post, b);
+            int bend = CaughtChain.FirstBend(joints);
+            Check(Vector3.Distance(joints[bend], post) < 0.05f, "caught: the first bend is at the post (" + (Vector3.Distance(joints[bend], post) * 100).ToString("0.0") + " cm from it)");
+            // The chain is 6 cm too short, the breast gives 12: it settles, without a swing.
+            var caught = new CaughtChain();
+            var (drawn, move) = Held(caught, post, b, length, _ => Vector3.Zero, 0.12f, 900);
+            float over = Vector3.Distance(drawn, post) + 0.4f - length;
+            Check(caught.Caught && over < 0.012f && over > -0.012f, "caught: draws the breast until the chain just reaches (" + (over * 1000).ToString("0.0") + " mm left)");
+            Check(move < 0.0003f, "caught: holds it still (" + (move * 1000).ToString("0.00") + " mm a frame)");
+            // Too short and caught, the chain's joints jitter: the breast does not.
+            var random = new Random(5);
+            Vector3 Shake(int i) => new Vector3((float)random.NextDouble() - 0.5f, (float)random.NextDouble() - 0.5f, (float)random.NextDouble() - 0.5f) * 0.16f;
+            (drawn, move) = Held(new CaughtChain(), post, b, length, Shake, 0.03f, 900);
+            Check(move < 0.0003f, "caught: holds it still while the chain jitters +-8 cm (" + (move * 1000).ToString("0.00") + " mm a frame)");
+            Check(Math.Abs(Vector3.Distance(drawn, A - new Vector3(0.06f, 0f, 0f)) - 0.03f) < 0.001f, "caught: draws the breast as far as it gives, no further");
+            // The bend moves along (she turns slowly): the place follows.
+            var moving = new CaughtChain();
+            Vector3 to = post + new Vector3(0f, 0.1f, 0f);
+            for (int i = 0; i < 300; i++) moving.Update(1f / 60f, Along(A, i < 100 ? post : to, b), length, 0.1f, 0.004f, A, 0.03f);
+            Check(Vector3.Distance(moving.Point, to) < 0.02f, "caught: follows the bend (" + (Vector3.Distance(moving.Point, to) * 100).ToString("0.0") + " cm from it)");
+            // She steps nearer: let go.
+            int slack = 0;
+            while (slack < 300 && caught.Caught) { caught.Update(1f / 60f, Along(A + new Vector3(0.12f, 0f, 0f), A + new Vector3(0.2f, -0.2f, 0f), post, b), length, 0f, 0.004f, A + new Vector3(0.12f, 0f, 0f), 0.12f); slack++; }
+            Check(slack < 60, "caught: let go when it hangs slack (" + slack + " frames)");
+            // She turns away from where it was caught: the chain is slack and elsewhere, the old place holds nothing.
+            var turnedAway = new CaughtChain();
+            for (int i = 0; i < 60; i++) turnedAway.Update(1f / 60f, Along(A, post, b), length, 0.02f, 0.004f, A, 0.02f);
+            Check(turnedAway.Caught && turnedAway.Pull > 0.019f, "caught: (turning away) caught first");
+            Vector3 turned = A + new Vector3(0f, 0f, 0.25f);
+            int until = 0;
+            while (until < 300 && turnedAway.Caught) { turnedAway.Update(1f / 60f, Along(turned, turned + new Vector3(0f, -0.2f, 0.1f), b), length, 0f, 0.004f, turned, 0.02f); until++; }
+            Check(until < 12, "caught: let go when the chain no longer goes past the place (" + until + " frames)");
+            // Her point is further than it is long, the chain straight: that holds her, not the place it was caught before.
+            var straight = new CaughtChain();
+            for (int i = 0; i < 60; i++) straight.Update(1f / 60f, Along(A, post, b), length, 0.02f, 0.004f, A, 0.02f);
+            for (int i = 0; i < 12; i++) straight.Update(1f / 60f, Along(A, A + new Vector3(0f, 0f, 0.8f)), length, 0.1f, 0.004f, A, 0.02f);
+            Check(!straight.Caught, "caught: let go when the chain is pulled straight");
+            // Further than it is long and still round the post: caught.
+            var both = new CaughtChain();
+            both.Update(1f / 60f, Along(A, post, post + new Vector3(0f, 0f, 0.8f)), length, 0.4f, 0.004f, A, 0.02f);
+            Check(both.Caught, "caught: also when the point is further than the chain is long");
+        }
+
+        /// <summary>The breast (6 cm too far from the post) drawn as the caught chain says, with some inertia; the chain goes over the
+        /// post and its bend is moved by <paramref name="shake"/>. Where it ends, and its largest step in the second half.</summary>
+        private static (Vector3 Drawn, float Step) Held(CaughtChain caught, Vector3 post, Vector3 b, float length, Func<int, Vector3> shake, float most, int frames)
+        {
+            Vector3 rest = A - new Vector3(0.06f, 0f, 0f), drawn = rest;
+            float move = 0f;
+            for (int i = 0; i < frames; i++)
+            {
+                float path = Vector3.Distance(drawn, post) + 0.4f;
+                caught.Update(1f / 60f, Along(drawn, post + shake(i), b), length, Math.Max(0f, path - length), 0.004f, rest, most);
+                Vector3 was = drawn, want = rest;
+                if (caught.Caught && caught.Pull > 1e-4f) want = rest + Vector3.Normalize(caught.Point - rest) * caught.Pull;
+                drawn += (want - drawn) * 0.5f;
+                if (i > frames / 2) move = Math.Max(move, Vector3.Distance(was, drawn));
+            }
+            return (drawn, move);
         }
 
         private static void ChainTests()

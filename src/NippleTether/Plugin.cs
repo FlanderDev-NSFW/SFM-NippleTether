@@ -16,12 +16,13 @@ namespace NippleTether
     /// chains out and take them in. Taut chains draw her breasts out and hold her back (<see cref="TetherController"/>).
     /// </summary>
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency(BreastLink.Guid, BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency(Hub.Guid, "^2.0.0")] // RestraintHub 2: the panel (U), PutOn / TakeOff, mission settings
     public sealed class Plugin : BasePlugin
     {
         public const string PluginGuid = "FlanderDev.SFM.NippleTether";
         public const string PluginName = "NippleTether";
-        public const string PluginVersion = "2.0.0";
+        public const string PluginVersion = "2.1.0";
         internal const string ModelResource = "NippleTether.assets.piercings.npd";
 
         internal static ManualLogSource Logger;
@@ -36,6 +37,7 @@ namespace NippleTether
         public override void Load()
         {
             Logger = Log;
+            BreastLink.Connect();
             RingLabel = Config.Bind("General", "RingLabel", "Nipple Tether", "Name in the restraint panel and the worn list.");
             LengthCm = Config.Bind("Chain", "LengthCm", 100f, new ConfigDescription(
                 "Length of each chain (cm; + / - change it while the tether is selected, and store it here).", new AcceptableValueRange<float>(10f, 400f)));
@@ -64,12 +66,12 @@ namespace NippleTether
             MaxStretchCm = Config.Bind("Breasts", "MaxStretchCm", 4f, new ConfigDescription(
                 "How far a taut chain draws a nipple out before it pulls her along (cm at height 1, scaled with her height).", new AcceptableValueRange<float>(0f, 15f)));
             MaxAngle = Config.Bind("Breasts", "MaxAngle", 30f, new ConfigDescription(
-                "How far a breast turns towards its chain at most (degrees).", new AcceptableValueRange<float>(0f, 80f)));
+                "How far a breast turns towards its chain at most (degrees; without BreastPhysics).", new AcceptableValueRange<float>(0f, 80f)));
             Elongation = Config.Bind("Breasts", "Elongation", 1.5f, new ConfigDescription(
-                "How much a taut chain stretches the breast towards it (per unit of pull relative to the breast's length; 0 = the breast is only turned).",
+                "How much a taut chain stretches the breast towards it (per unit of pull relative to the breast's length; 0 = the breast is only turned; without BreastPhysics).",
                 new AcceptableValueRange<float>(0f, 5f)));
             MaxElongation = Config.Bind("Breasts", "MaxElongation", 0.5f, new ConfigDescription(
-                "How far a breast is stretched at most (0.5 = to 1.5 times its length).", new AcceptableValueRange<float>(0f, 1.5f)));
+                "How far a breast is stretched at most (0.5 = to 1.5 times its length; without BreastPhysics).", new AcceptableValueRange<float>(0f, 1.5f)));
             NippleFit = Config.Bind("Nipple", "NippleFit", 1.7f, new ConfigDescription(
                 "Size of the ring through each nipple relative to the nipple (as NipplePiercings' rings).", new AcceptableValueRange<float>(0.3f, 4f)));
             DepthCm = Config.Bind("Nipple", "DepthCm", 0.45f, new ConfigDescription(

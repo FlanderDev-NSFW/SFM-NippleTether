@@ -131,6 +131,31 @@ point's distance and height, length and target, how far she was moved, level pro
 - L3 1.1.0 (2026-11-02, with RestraintHub 1.1.0 and the test missions - details in RestraintHub's `docs/RestraintHub.md`, L3 1.1.0): put on by missions, `keep` lock kept on when the mission was switched off, taken off by the escape key and by a mission; setting `length` 39.7 -> 50 -> 9999 clamped to 400 cm, config LengthCm unchanged.
 - L3 2.0.0 (2026-11-07, RestraintHub 2.0.0): ported to the hub's 2.0 API (`Wearable`; no ring entry, number keys or shortcut save key; the hub shows `PutOn`'s reason). In game: listed in the panel (`U`), listed; not put on in this test (same `PutOn` / `TakeOff` as 1.1, tested then).
 
+- L3 2.1.0 (2026-11-24, user: move its pull to BreastPhysics): with BreastPhysics installed and on, the chains hold the nipples in its simulation
+  (`BreastLink`, by reflection on `BreastApi.HoldWithin`, soft dependency); `BreastRotate` is not turned then. Without it, or with it
+  switched off, everything is as in 2.0.0 (in game without the plugin: log "BreastPhysics is not installed; the tether pulls them itself").
+  `MaxStretchCm` is the most the chains draw a nipple from rest (BreastPhysics' `Most`, measured from the resting nipple inside its steps: computed
+  from the swinging ring end it trembled 1 mm). Holding her back, taking in and moving the point count from the resting nipple.
+  - A chain caught on something (`Logic/CaughtChain`) draws the nipple towards its first bend by `Pull`. First kept as a length to that place: taken in to 0
+    while the breast was at its limit, it would still have pulled a slack chain, and it went stale when she turned away. Then followed every frame: a chain that
+    is caught and too short has no solution, its joints jitter, and the bend with them. Now a pull (0 .. `MaxStretchCm`), the place the mean of the bend with a
+    dead band of 3 cm at rest (quick while she moves).
+  - Measured per frame (`BreastPhysics.Recorder`, nipple in the chest's frame, cm a frame, tall save, 55 cm chains, left / right):
+
+    | | 2.1.0 | old pull (BreastPhysics off; control) |
+    |---|---|---|
+    | taut, standing | 0.014 / 0.016 | 0.215 / 0.175 |
+    | turned away from the point, at rest | 0.014 / 0.008 | 0.40 / 0.085 |
+    | turning away, sharpest change | 1.5 / 1.9 | 6.7 / 5.3 |
+    | turning side to side, sharpest change | 3.0 / 3.1 | 5.5 / 5.2 |
+    | caught, at rest after turning (5 times) | 0.004 - 0.023 (once 0.085: the chain slid on, 0.44 in one frame) | 0.01 - 0.30 |
+    | ... the limit followed every frame (first version) | up to 0.64 | |
+    | out of the Armpit Squat | 0.040 / 0.043 | |
+
+  - A slack chain leaves the breast alone: 0.4 cm off rest, as with the pull switched off (the first version: 5.6 cm).
+  - Small save: at rest after turning 0.001 - 0.016. With PaimonPiercings in the Armpit Squat: 0.029 / 0.018 (Paimon alone 0.009 / 0.009).
+  - Not tested: other saves and missions (the put-on and lock path is unchanged).
+
 ## Known limits
 
 - When held back she walks on the spot (the game's walk animation plays against the chain).
