@@ -134,11 +134,16 @@ point's distance and height, length and target, how far she was moved, level pro
 - L3 2.1.0 (2026-11-24, user: move its pull to BreastPhysics): with BreastPhysics installed and on, the chains hold the nipples in its simulation
   (`BreastLink`, by reflection on `BreastApi.HoldWithin`, soft dependency); `BreastRotate` is not turned then. Without it, or with it
   switched off, everything is as in 2.0.0 (in game without the plugin: log "BreastPhysics is not installed; the tether pulls them itself").
-  `MaxStretchCm` is the most the chains draw a nipple from rest (BreastPhysics' `Most`, measured from the resting nipple inside its steps: computed
-  from the swinging ring end it trembled 1 mm). Holding her back, taking in and moving the point count from the resting nipple.
+  `MaxDrawCm` is the most the chains draw a nipple from rest (BreastPhysics' `Most`, measured from the resting nipple inside its steps: computed
+  from the swinging ring end it trembled 1 mm). Holding her back, taking in and moving the point count from the resting nipple, with the room the breast has that way
+  (`Room`: `BreastApi.Give`, up to `MaxDrawCm`).
+  - It was `MaxStretchCm` (4 cm, 5 cm on the tall save) at first, also as the room: the breasts could hardly be lifted [user, 2026-11-24]. Point raised all the way with Space,
+    55 cm chains, nipple up: 4.9 cm before (the old pull: 4.4 - 4.9), 17.3 - 17.5 cm now (`MaxDrawCm` 8 / 12 / 16 / 20: 9.9 / 15 / 20.3 / 22.4; 20 looks overdrawn); small save 5.7 - 5.9 (its size).
+    Chain stretch 0.0 - 1.6 cm (20: 2 - 3 before `Give` allowed for what the spring keeps back). At rest lifted 0.01 cm a frame. Taking in stops at 48.4 cm from 55. Walking away for 200 frames leaves the
+    point 86 / 73 / 65 cm away (S / D / A, also while she turns), the old pull 106 / 83 / 71.
   - A chain caught on something (`Logic/CaughtChain`) draws the nipple towards its first bend by `Pull`. First kept as a length to that place: taken in to 0
     while the breast was at its limit, it would still have pulled a slack chain, and it went stale when she turned away. Then followed every frame: a chain that
-    is caught and too short has no solution, its joints jitter, and the bend with them. Now a pull (0 .. `MaxStretchCm`), the place the mean of the bend with a
+    is caught and too short has no solution, its joints jitter, and the bend with them. Now a pull (0 .. what the breast gives), the place the mean of the bend with a
     dead band of 3 cm at rest (quick while she moves).
   - Measured per frame (`BreastPhysics.Recorder`, nipple in the chest's frame, cm a frame, tall save, 55 cm chains, left / right):
 

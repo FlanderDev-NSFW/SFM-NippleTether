@@ -204,7 +204,7 @@ namespace NippleTether
             {
                 float need = 0f;
                 foreach (var s in _sides)
-                    if (s.Chain != null) need = Math.Max(need, NVector3.Distance(Resting(s), _point) - MaxStretch);
+                    if (s.Chain != null) need = Math.Max(need, NVector3.Distance(Resting(s), _point) - Room(s, _point));
                 _target = Math.Max(_target, Math.Min(before, need));
             }
             if (step != 0 && Math.Abs(_target - before) < 1e-6f)
@@ -226,10 +226,21 @@ namespace NippleTether
             NVector3 fwd = cam != null ? N(cam.transform.forward) : NVector3.UnitZ;
             float speed = Plugin.PointSpeed.Value * (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed ? 2.5f : 1f);
             NVector3 to = _point + PointControl.Move(new NVector3(x, y, z), fwd, speed, dt);
-            NVector3 centre = NippleMiddle() - (N(BreastLink.Offset(0)) + N(BreastLink.Offset(1))) / 2f;
             // Never further than the chains reach: the point does not drag her (it used to, 0.25 m beyond).
-            float reach = _length + MaxStretch;
-            _point = PointControl.Clamp(_point, to, centre, reach, reach);
+            if (!BreastLink.Active)
+            {
+                float reach = _length + MaxStretch;
+                _point = PointControl.Clamp(_point, to, NippleMiddle(), reach, reach);
+                return;
+            }
+            NVector3 from = _point;
+            for (int pass = 0; pass < 2; pass++)
+                foreach (var s in _sides)
+                {
+                    float reach = _length + Room(s, to);
+                    to = PointControl.Clamp(from, to, Resting(s), reach, reach);
+                }
+            _point = to;
         }
 
         private static bool Held(Keyboard kb, string name)
@@ -266,10 +277,10 @@ namespace NippleTether
             _held = NVector3.Zero;
             if (on && _cc.enabled && !_needPoint && moved.Length() < 1f) // not across a teleport
             {
-                float reach = _length + MaxStretch;
                 foreach (var s in _sides)
                 {
                     if (s.Chain == null) continue;
+                    float reach = _length + Room(s, _point);
                     // With BreastPhysics from where the breast rests: the chain never reaches further than it is, the breast gives.
                     NVector3 c = PointControl.Hold(Resting(s), _point, reach, moved);
                     if (c.LengthSquared() > _held.LengthSquared()) _held = c;
@@ -287,6 +298,15 @@ namespace NippleTether
         /// <summary>Where the chain would start with the breast at rest (BreastPhysics tells how far it is drawn; else as drawn).</summary>
         [HideFromIl2Cpp]
         private NVector3 Resting(Side s) => s.Hook - N(BreastLink.Offset(s == _sides[0] ? 0 : 1));
+
+        /// <summary>How far the breast lets the nipple be drawn towards a point: with BreastPhysics as far as it goes that way (it turns and
+        /// lengthens), up to <c>MaxDrawCm</c>; without it <c>MaxStretchCm</c>.</summary>
+        [HideFromIl2Cpp]
+        private float Room(Side s, NVector3 point)
+        {
+            if (!BreastLink.Active) return MaxStretch;
+            return Math.Min(MaxDraw, BreastLink.Give(s == _sides[0] ? 0 : 1, U(point - Resting(s))));
+        }
 
         [HideFromIl2Cpp]
         private void TurnBreast(Side s)
@@ -365,6 +385,7 @@ namespace NippleTether
 
         private float Height => _avatar != null ? _avatar.lossyScale.y : 1f;
         private float MaxStretch => Plugin.MaxStretchCm.Value / 100f * Height;
+        private float MaxDraw => Plugin.MaxDrawCm.Value / 100f * Height;
 
         [HideFromIl2Cpp]
         private void Place()
@@ -405,13 +426,13 @@ namespace NippleTether
                 if (BreastLink.Active)
                 {
                     s.Pull.Reset();
-                    s.Caught.Update(Time.deltaTime, c.Joints, c.Length, c.Stretch, s.Pull.Tolerance, Resting(s), MaxStretch);
+                    s.Caught.Update(Time.deltaTime, c.Joints, c.Length, c.Stretch, s.Pull.Tolerance, Resting(s), Room(s, s.Caught.Caught ? s.Caught.Point : s.Hook + c.PullDirection * 0.5f));
                     if ((debug & 1) != 0) BreastLink.Release(i);
-                    // Never drawn further than MaxStretchCm from where the breast rests: for the rest she is held back, or the chain is drawn apart.
-                    else if (MaxStretch < 1e-4f) BreastLink.Release(i);
+                    // Never drawn further than MaxDrawCm from where the breast rests: for the rest she is held back, or the chain is drawn apart.
+                    else if (MaxDraw < 1e-4f) BreastLink.Release(i);
                     else if (s.Caught.Caught && s.Caught.Pull < 1e-4f) BreastLink.Release(i);
                     else if (s.Caught.Caught) BreastLink.Hold(i, U(s.Caught.Point), 0f, U(s.Hook), s.Caught.Pull);
-                    else BreastLink.Hold(i, U(_point), c.Length, U(s.Hook), MaxStretch);
+                    else BreastLink.Hold(i, U(_point), c.Length, U(s.Hook), MaxDraw);
                 }
                 else s.Pull.Update(Time.deltaTime, c.Stretch, c.PullDirection);
                 sb.Append(s.Name).Append(": ").Append(c.Segments).Append(" links, stretch ").Append(Cm(c.Stretch))

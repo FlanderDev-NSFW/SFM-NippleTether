@@ -38,7 +38,8 @@ Missions (Custom Missions v2) can put it on and lock it through RestraintHub: `R
 |---|---|---|
 | Chain.LengthCm | 100 | chain length (`+` / `-` change it) |
 | Chain.MinLengthCm / MaxLengthCm | 15 / 300 | range of `+` / `-` |
-| Breasts.MaxStretchCm | 4 | how far the breasts can be pulled before she is held back |
+| Breasts.MaxStretchCm | 4 | how far the breasts can be pulled before she is held back; without BreastPhysics |
+| Breasts.MaxDrawCm | 14 | the same with BreastPhysics: how far they can be lifted or drawn (the breast's own size limits it too) |
 | Breasts.Elongation | 1.5 | how much a pull stretches the breasts (0 = they only turn towards the chain); without BreastPhysics |
 | Unlock.SuccessChance | 1 | chance that struggling frees her (1 = first try) |
 

@@ -17,6 +17,7 @@ namespace NippleTether
         private static Action<string, int> _release;
         private static Func<int, Vector3> _offset;
         private static Func<bool> _active;
+        private static Func<int, Vector3, float> _give;
 
         public static bool Active => _hold != null && _active();
 
@@ -34,6 +35,7 @@ namespace NippleTether
                 _release = Get<Action<string, int>>("Release");
                 _offset = Get<Func<int, Vector3>>("Offset");
                 _active = Get<Func<bool>>("IsActive");
+                _give = Get<Func<int, Vector3, float>>("Give");
                 _hold = Get<Action<string, int, Vector3, float, Vector3, float>>("HoldWithin");
                 Plugin.Logger.LogInfo("[SFM-ACCEPT] breasts: chains pull through BreastPhysics " + info.Metadata.Version);
             }
@@ -48,6 +50,10 @@ namespace NippleTether
         public static void Hold(int side, Vector3 point, float length, Vector3 at, float most) => _hold?.Invoke(Owner, side, point, length, at, most);
 
         public static void Release(int side) => _release?.Invoke(Owner, side);
+
+        /// <summary>How much nearer to a point the breast can bring its nipple than at rest (m).</summary>
+        /// <param name="to">The point from where the chain would start with the breast at rest (world).</param>
+        public static float Give(int side, Vector3 to) => Active ? _give(side, to) : 0f;
 
         /// <summary>How far the nipple is drawn from its resting place now (world).</summary>
         public static Vector3 Offset(int side) => Active ? _offset(side) : Vector3.zero;
