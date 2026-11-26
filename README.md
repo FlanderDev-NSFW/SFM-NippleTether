@@ -10,7 +10,7 @@ Models: ["Assorted Piercings"](https://smutba.se/project/88b66562-04d2-4dd5-9dcc
 - BepInEx 6 for IL2CPP (tested with build 738)
 - **RestraintHub 2.0.0** or newer (2.x)
 - Optional: NipplePiercings. If she wears a piercing there, the chain hangs from it.
-- Optional: **BreastPhysics** 1.0.0 or newer. The chains then pull in its simulation: breasts give to them, swing and come to rest.
+- Optional: [**BreastPhysics**](https://github.com/FlanderDev-NSFW/SFM-BreastPhysics/releases) 1.0.0 or newer. The chains then pull in its simulation: breasts give to them, swing and come to rest.
 
 ## Install
 Extract the zip into the game folder (the folder with `SecretFlasherManaka.exe`). You get `BepInEx/plugins/NippleTether/`.
